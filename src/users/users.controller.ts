@@ -12,16 +12,21 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ApiBody, ApiOperation } from '@nestjs/swagger';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post('/register')
+  @ApiOperation({ summary: 'Create a new user' })
+  @ApiBody({ type: CreateUserDto })
   register(@Body() createUserDto: CreateUserDto) {
     return this.usersService.register(createUserDto);
   }
 
+  @ApiOperation({ summary: 'Login' })
+  @ApiBody({ type: LoginUserDto })
   @Post('/login')
   login(@Body() loginUserDto: LoginUserDto) {
     return this.usersService.login(loginUserDto);

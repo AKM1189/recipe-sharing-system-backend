@@ -97,7 +97,30 @@ export class UsersService {
     const decode = this.tokenService.verifyRefreshToken(
       refreshTokenDto.refreshToken,
     );
-    console.log('decode', decode);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: decode.id },
+    });
+
+    if (!existingUser) {
+      throw new UnauthorizedException();
+    }
+
+    const payload = {
+      id: existingUser.id,
+      name: existingUser.name,
+      email: existingUser.email,
+    };
+
+    const accessToken = this.tokenService.generateAccessToken(payload);
+    const refreshToken = this.tokenService.generateRefreshToken(payload);
+
+    return {
+      accessToken: accessToken.token,
+      refreshToken: refreshToken.token,
+      accessTokenExpireTime: accessToken.expireTime,
+      refreshTokenExpireTime: refreshToken.expireTime,
+    };
   }
 
   findAll() {

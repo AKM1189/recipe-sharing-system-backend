@@ -33,10 +33,10 @@ export class TokenService {
   }
 
   verifyAccessToken(token: string) {
-    return jwt.verify(token, this.accessTokenSecret);
+    return jwt.verify(token, this.accessTokenSecret) as jwt.JwtPayload;
   }
 
   verifyRefreshToken(token: string) {
-    return jwt.verify(token, this.refreshTokenSecret);
+    return jwt.verify(token, this.refreshTokenSecret) as jwt.JwtPayload;
   }
 }
