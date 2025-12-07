@@ -3,11 +3,3 @@ export interface CreateResponse {
   name: string;
   email: string;
 }
-
-export interface LoginResponse {
-  user: CreateResponse;
-  accessToken: string;
-  refreshToken: string;
-  accessTokenExpireTime: Date;
-  refreshTokenExpireTime: Date;
-}
