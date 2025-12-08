@@ -123,6 +123,28 @@ export class UsersService {
     };
   }
 
+  findOneById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+  }
+
+  findOneByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+  }
+
   findAll() {
     return `This action returns all users`;
   }
