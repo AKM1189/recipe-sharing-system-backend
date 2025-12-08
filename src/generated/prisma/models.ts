@@ -9,4 +9,13 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/User.js'
+export type * from './models/Recipe.js'
+export type * from './models/RecipeIngredient.js'
+export type * from './models/RecipeStep.js'
+export type * from './models/Category.js'
+export type * from './models/RecipeCategories.js'
+export type * from './models/Tag.js'
+export type * from './models/RecipeTag.js'
+export type * from './models/Review.js'
+export type * from './models/Favourite.js'
 export type * from './commonInputTypes.js'

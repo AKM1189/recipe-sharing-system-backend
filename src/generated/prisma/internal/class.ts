@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.1.0",
   "engineVersion": "ab635e6b9d606fa5c8fb8b1a7f909c3c3c1c98ba",
   "activeProvider": "postgresql",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider     = \"prisma-client\"\n  output       = \"../src/generated/prisma\"\n  moduleFormat = \"cjs\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nmodel User {\n  id        String    @id @default(uuid())\n  name      String\n  email     String    @unique\n  password  String\n  createdAt DateTime  @default(now())\n  updatedAt DateTime?\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider     = \"prisma-client\"\n  output       = \"../src/generated/prisma\"\n  moduleFormat = \"cjs\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n}\n\nenum RecipeDifficulty {\n  EASY\n  MEDIUM\n  HARD\n  EXPERT\n}\n\nenum RecipeStatus {\n  DRAFT\n  PUBLISHED\n  ARCHIVED\n}\n\nmodel User {\n  id         String      @id @default(uuid())\n  name       String\n  email      String      @unique\n  password   String\n  createdAt  DateTime    @default(now())\n  updatedAt  DateTime?\n  recipes    Recipe[]\n  favourites Favourite[]\n}\n\nmodel Recipe {\n  id          Int              @id @default(autoincrement())\n  title       String\n  description String\n  imageUrl    String?\n  cookingTime Int\n  serving     Int\n  difficulty  RecipeDifficulty\n  status      RecipeStatus\n  createdAt   DateTime         @default(now())\n  updatedAt   DateTime?\n\n  userId String\n  user   User   @relation(fields: [userId], references: [id])\n\n  ingredients RecipeIngredient[]\n  steps       RecipeStep[]\n  categories  RecipeCategories[]\n  tags        RecipeTag[]\n  reviews     Review[]\n  favourites  Favourite[]\n}\n\nmodel RecipeIngredient {\n  id       Int    @id @default(autoincrement())\n  name     String\n  quantity String\n  recipe   Recipe @relation(fields: [recipeId], references: [id])\n  recipeId Int\n}\n\nmodel RecipeStep {\n  id          Int     @id @default(autoincrement())\n  stepNumber  Int\n  instruction String\n  imageUrl    String?\n  recipe      Recipe  @relation(fields: [recipeId], references: [id])\n  recipeId    Int\n}\n\nmodel Category {\n  id      Int                @id @default(autoincrement())\n  name    String\n  slug    String\n  recipes RecipeCategories[]\n}\n\nmodel RecipeCategories {\n  recipe     Recipe   @relation(fields: [recipeId], references: [id])\n  recipeId   Int\n  category   Category @relation(fields: [categoryId], references: [id])\n  categoryId Int\n\n  @@id([recipeId, categoryId])\n}\n\nmodel Tag {\n  id      Int         @id @default(autoincrement())\n  name    String\n  slug    String\n  recipes RecipeTag[]\n}\n\nmodel RecipeTag {\n  recipe   Recipe @relation(fields: [recipeId], references: [id])\n  recipeId Int\n  tag      Tag    @relation(fields: [tagId], references: [id])\n  tagId    Int\n\n  @@id([recipeId, tagId])\n}\n\nmodel Review {\n  id          Int       @id @default(autoincrement())\n  rating      Decimal\n  description String\n  createdAt   DateTime  @default(now())\n  updatedAt   DateTime?\n  recipe      Recipe    @relation(fields: [recipeId], references: [id])\n  recipeId    Int\n}\n\nmodel Favourite {\n  userId    String\n  user      User     @relation(fields: [userId], references: [id])\n  recipeId  Int\n  recipe    Recipe   @relation(fields: [recipeId], references: [id])\n  createdAt DateTime @default(now())\n\n  @@id([userId, recipeId])\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"User\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"email\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"password\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"recipes\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToUser\"},{\"name\":\"favourites\",\"kind\":\"object\",\"type\":\"Favourite\",\"relationName\":\"FavouriteToUser\"}],\"dbName\":null},\"Recipe\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"imageUrl\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"cookingTime\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"serving\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"difficulty\",\"kind\":\"enum\",\"type\":\"RecipeDifficulty\"},{\"name\":\"status\",\"kind\":\"enum\",\"type\":\"RecipeStatus\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"RecipeToUser\"},{\"name\":\"ingredients\",\"kind\":\"object\",\"type\":\"RecipeIngredient\",\"relationName\":\"RecipeToRecipeIngredient\"},{\"name\":\"steps\",\"kind\":\"object\",\"type\":\"RecipeStep\",\"relationName\":\"RecipeToRecipeStep\"},{\"name\":\"categories\",\"kind\":\"object\",\"type\":\"RecipeCategories\",\"relationName\":\"RecipeToRecipeCategories\"},{\"name\":\"tags\",\"kind\":\"object\",\"type\":\"RecipeTag\",\"relationName\":\"RecipeToRecipeTag\"},{\"name\":\"reviews\",\"kind\":\"object\",\"type\":\"Review\",\"relationName\":\"RecipeToReview\"},{\"name\":\"favourites\",\"kind\":\"object\",\"type\":\"Favourite\",\"relationName\":\"FavouriteToRecipe\"}],\"dbName\":null},\"RecipeIngredient\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"quantity\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipeIngredient\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"}],\"dbName\":null},\"RecipeStep\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"stepNumber\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"instruction\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"imageUrl\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipeStep\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"}],\"dbName\":null},\"Category\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"slug\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipes\",\"kind\":\"object\",\"type\":\"RecipeCategories\",\"relationName\":\"CategoryToRecipeCategories\"}],\"dbName\":null},\"RecipeCategories\":{\"fields\":[{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipeCategories\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"category\",\"kind\":\"object\",\"type\":\"Category\",\"relationName\":\"CategoryToRecipeCategories\"},{\"name\":\"categoryId\",\"kind\":\"scalar\",\"type\":\"Int\"}],\"dbName\":null},\"Tag\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"name\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"slug\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"recipes\",\"kind\":\"object\",\"type\":\"RecipeTag\",\"relationName\":\"RecipeTagToTag\"}],\"dbName\":null},\"RecipeTag\":{\"fields\":[{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToRecipeTag\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"tag\",\"kind\":\"object\",\"type\":\"Tag\",\"relationName\":\"RecipeTagToTag\"},{\"name\":\"tagId\",\"kind\":\"scalar\",\"type\":\"Int\"}],\"dbName\":null},\"Review\":{\"fields\":[{\"name\":\"id\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"rating\",\"kind\":\"scalar\",\"type\":\"Decimal\"},{\"name\":\"description\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"RecipeToReview\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"}],\"dbName\":null},\"Favourite\":{\"fields\":[{\"name\":\"userId\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"user\",\"kind\":\"object\",\"type\":\"User\",\"relationName\":\"FavouriteToUser\"},{\"name\":\"recipeId\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"recipe\",\"kind\":\"object\",\"type\":\"Recipe\",\"relationName\":\"FavouriteToRecipe\"},{\"name\":\"createdAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 
 async function decodeBase64AsWasm(wasmBase64: string): Promise<WebAssembly.Module> {
   const { Buffer } = await import('node:buffer')
@@ -183,6 +183,96 @@ export interface PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipe`: Exposes CRUD operations for the **Recipe** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Recipes
+    * const recipes = await prisma.recipe.findMany()
+    * ```
+    */
+  get recipe(): Prisma.RecipeDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipeIngredient`: Exposes CRUD operations for the **RecipeIngredient** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipeIngredients
+    * const recipeIngredients = await prisma.recipeIngredient.findMany()
+    * ```
+    */
+  get recipeIngredient(): Prisma.RecipeIngredientDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipeStep`: Exposes CRUD operations for the **RecipeStep** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipeSteps
+    * const recipeSteps = await prisma.recipeStep.findMany()
+    * ```
+    */
+  get recipeStep(): Prisma.RecipeStepDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.category`: Exposes CRUD operations for the **Category** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Categories
+    * const categories = await prisma.category.findMany()
+    * ```
+    */
+  get category(): Prisma.CategoryDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipeCategories`: Exposes CRUD operations for the **RecipeCategories** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipeCategories
+    * const recipeCategories = await prisma.recipeCategories.findMany()
+    * ```
+    */
+  get recipeCategories(): Prisma.RecipeCategoriesDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.tag`: Exposes CRUD operations for the **Tag** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Tags
+    * const tags = await prisma.tag.findMany()
+    * ```
+    */
+  get tag(): Prisma.TagDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.recipeTag`: Exposes CRUD operations for the **RecipeTag** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more RecipeTags
+    * const recipeTags = await prisma.recipeTag.findMany()
+    * ```
+    */
+  get recipeTag(): Prisma.RecipeTagDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.review`: Exposes CRUD operations for the **Review** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Reviews
+    * const reviews = await prisma.review.findMany()
+    * ```
+    */
+  get review(): Prisma.ReviewDelegate<ExtArgs, { omit: OmitOpts }>;
+
+  /**
+   * `prisma.favourite`: Exposes CRUD operations for the **Favourite** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Favourites
+    * const favourites = await prisma.favourite.findMany()
+    * ```
+    */
+  get favourite(): Prisma.FavouriteDelegate<ExtArgs, { omit: OmitOpts }>;
 }
 
 export function getPrismaClientClass(): PrismaClientConstructor {

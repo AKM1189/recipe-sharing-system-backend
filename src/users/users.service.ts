@@ -9,8 +9,6 @@ import { PrismaService } from 'src/prisma.service';
 import { CreateResponse, LoginResponse } from './interfaces/user.interface';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
-import * as jwt from 'jsonwebtoken';
-import { env } from 'prisma/config';
 import { TokenService } from './TokenService';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
