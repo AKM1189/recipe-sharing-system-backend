@@ -141,6 +141,7 @@ export class UsersService {
         id: true,
         name: true,
         email: true,
+        password: true,
       },
     });
   }
@@ -149,8 +150,15 @@ export class UsersService {
     return `This action returns all users`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: string) {
+    return await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {
