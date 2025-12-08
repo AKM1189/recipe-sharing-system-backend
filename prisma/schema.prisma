@@ -14,11 +14,118 @@ datasource db {
   provider = "postgresql"
 }
 
+enum RecipeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum RecipeStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  password  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime?
+  id         String      @id @default(uuid())
+  name       String
+  email      String      @unique
+  password   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime?
+  recipes    Recipe[]
+  favourites Favourite[]
+}
+
+model Recipe {
+  id          Int              @id @default(autoincrement())
+  title       String
+  description String
+  imageUrl    String?
+  cookingTime Int
+  serving     Int
+  difficulty  RecipeDifficulty
+  status      RecipeStatus
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  categories  RecipeCategories[]
+  tags        RecipeTag[]
+  reviews     Review[]
+  favourites  Favourite[]
+}
+
+model RecipeIngredient {
+  id       Int    @id @default(autoincrement())
+  name     String
+  quantity String
+  recipe   Recipe @relation(fields: [recipeId], references: [id])
+  recipeId Int
+}
+
+model RecipeStep {
+  id          Int     @id @default(autoincrement())
+  stepNumber  Int
+  instruction String
+  imageUrl    String?
+  recipe      Recipe  @relation(fields: [recipeId], references: [id])
+  recipeId    Int
+}
+
+model Category {
+  id      Int                @id @default(autoincrement())
+  name    String
+  slug    String
+  recipes RecipeCategories[]
+}
+
+model RecipeCategories {
+  recipe     Recipe   @relation(fields: [recipeId], references: [id])
+  recipeId   Int
+  category   Category @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
+  @@id([recipeId, categoryId])
+}
+
+model Tag {
+  id      Int         @id @default(autoincrement())
+  name    String
+  slug    String
+  recipes RecipeTag[]
+}
+
+model RecipeTag {
+  recipe   Recipe @relation(fields: [recipeId], references: [id])
+  recipeId Int
+  tag      Tag    @relation(fields: [tagId], references: [id])
+  tagId    Int
+
+  @@id([recipeId, tagId])
+}
+
+model Review {
+  id          Int       @id @default(autoincrement())
+  rating      Decimal
+  description String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?
+  recipe      Recipe    @relation(fields: [recipeId], references: [id])
+  recipeId    Int
+}
+
+model Favourite {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  recipeId  Int
+  recipe    Recipe   @relation(fields: [recipeId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@id([userId, recipeId])
 }
