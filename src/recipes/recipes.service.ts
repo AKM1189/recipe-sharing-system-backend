@@ -1,10 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
-import { PrismaService } from 'src/prisma.service';
-import { User } from 'src/generated/prisma/client';
 import { RecipeIngredientsService } from 'src/recipe-ingredients/recipe-ingredients.service';
 import { RecipeStepsService } from 'src/recipe-steps/recipe-steps.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class RecipesService {
@@ -14,7 +13,7 @@ export class RecipesService {
     private recipeStepServicee: RecipeStepsService,
   ) {}
 
-  async create(createRecipeDto: CreateRecipeDto, user: User) {
+  async create(createRecipeDto: CreateRecipeDto, user: any) {
     const {
       title,
       description,
