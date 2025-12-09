@@ -39,21 +39,16 @@ export class RecipesService {
       const recipe = await tx.recipe.create({
         data,
       });
-      const ingredientPayload = createRecipeDto.ingredients?.map((item) => ({
-        ...item,
-        recipeId: recipe.id,
-      }));
-      const stepPayload = createRecipeDto.steps?.map((item) => ({
-        ...item,
-        recipeId: recipe.id,
-      }));
 
-      if (ingredientPayload?.length) {
-        await this.recipeIngredientService.create(ingredientPayload);
+      if (createRecipeDto?.ingredients?.length) {
+        await this.recipeIngredientService.create(
+          recipe.id,
+          createRecipeDto?.ingredients,
+        );
       }
 
-      if (stepPayload?.length) {
-        await this.recipeStepServicee.create(stepPayload);
+      if (createRecipeDto?.steps?.length) {
+        await this.recipeStepServicee.create(recipe.id, createRecipeDto?.steps);
       }
       return recipe;
     });

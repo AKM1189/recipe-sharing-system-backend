@@ -13,8 +13,6 @@ import {
   Request,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -25,8 +23,8 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('login')
-  login(@Request() request) {
-    return this.authService.login(request.user);
+  login(@Request() request, @Body() body) {
+    return this.authService.login(request.user, body?.deviceId);
   }
 
   @UseGuards(LocalAuthGuard)
@@ -39,5 +37,10 @@ export class AuthController {
   @Get('/me')
   async getProfile(@Request() request) {
     return request.user;
+  }
+
+  @Post('/refresh')
+  async refresh(@Body() body) {
+    return this.authService.refresh(body.refreshToken);
   }
 }

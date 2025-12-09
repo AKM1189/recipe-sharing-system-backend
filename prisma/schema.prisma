@@ -26,14 +26,29 @@ enum RecipeStatus {
 }
 
 model User {
-  id         String      @id @default(uuid())
-  name       String
-  email      String      @unique
-  password   String
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime?
-  recipes    Recipe[]
-  favourites Favourite[]
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  password      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime?
+  recipes       Recipe[]
+  favourites    Favourite[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    String
+  device    String?
+  ipAddress String?
+  exipresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, device])
 }
 
 model Recipe {
@@ -62,9 +77,11 @@ model Recipe {
 model RecipeIngredient {
   id       Int    @id @default(autoincrement())
   name     String
+  recipeId Int
   quantity String
   recipe   Recipe @relation(fields: [recipeId], references: [id])
-  recipeId Int
+
+  @@unique([name, recipeId])
 }
 
 model RecipeStep {
@@ -74,6 +91,8 @@ model RecipeStep {
   imageUrl    String?
   recipe      Recipe  @relation(fields: [recipeId], references: [id])
   recipeId    Int
+
+  @@unique([stepNumber, recipeId])
 }
 
 model Category {

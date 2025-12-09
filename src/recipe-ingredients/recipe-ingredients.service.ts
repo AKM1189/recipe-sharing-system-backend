@@ -6,21 +6,31 @@ import { PrismaService } from 'src/prisma/prisma.service';
 export class RecipeIngredientsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(payload: IngredientsPayload[]) {
+  async create(recipeId: number, payload: IngredientsPayload[]) {
     if (!payload.length) return;
 
     return this.prisma.recipeIngredient.createMany({
-      data: payload,
+      data: payload.map((item) => ({ ...item, recipeId })),
       skipDuplicates: true,
     });
   }
 
-  async update(payload: IngredientsPayload[]) {
+  async update(recipeId: number, payload: IngredientsPayload[]) {
     if (!payload.length) return;
 
-    return this.prisma.recipeIngredient.createMany({
-      data: payload,
-      skipDuplicates: true,
-    });
+    return await Promise.all(
+      payload.map((item) =>
+        this.prisma.recipeIngredient.upsert({
+          where: {
+            name_recipeId: {
+              name: item.name,
+              recipeId: recipeId,
+            },
+          },
+          update: { quantity: item.quantity },
+          create: { ...item, recipeId },
+        }),
+      ),
+    );
   }
 }
