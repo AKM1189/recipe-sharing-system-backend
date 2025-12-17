@@ -12,7 +12,7 @@ export class TokenService {
   constructor(private jwt: JwtService) {}
   private readonly accessTokenSecret = env('ACCESS_TOKEN_SECRET');
   private readonly refreshTokenSecret = env('REFRESH_TOKEN_SECRET');
-  private readonly accessTokenExpiration = '10m';
+  private readonly accessTokenExpiration = '1m';
   private readonly refreshTokenExpiration = '1d';
 
   async generateAccessToken(payload: any): Promise<TokenResponse> {
@@ -22,7 +22,7 @@ export class TokenService {
     });
 
     const expireTime = new Date();
-    expireTime.setHours(expireTime.getMinutes() + 10);
+    expireTime.setHours(expireTime.getMinutes() + 1);
 
     return { token, expireTime };
   }

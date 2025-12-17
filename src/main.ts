@@ -9,6 +9,17 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalFilters(new AllExceptionsFilter());
 
+  app.enableCors({
+    origin: [
+      'http://localhost:5000', // Next.js dev
+      'http://127.0.0.1:5000', // sometimes needed
+      'https://your-frontend.com', // production
+    ],
+    credentials: true, // IMPORTANT for cookies
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
   // swagger set up
   const config = new DocumentBuilder()
     .setTitle('Recipe Sharing System')

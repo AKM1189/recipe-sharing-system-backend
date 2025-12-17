@@ -5,7 +5,11 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { CreateResponse, LoginResponse } from './interfaces/user.interface';
+import {
+  CreatePayload,
+  CreateResponse,
+  LoginResponse,
+} from './interfaces/user.interface';
 import * as bcrypt from 'bcrypt';
 import { LoginUserDto } from './dto/login-user.dto';
 import { TokenService } from './TokenService';
@@ -19,23 +23,9 @@ export class UsersService {
     private tokenService: TokenService,
   ) {}
 
-  async register(createUserDto: CreateUserDto): Promise<CreateResponse> {
-    const { email, password } = createUserDto;
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email: email },
-    });
-    if (existingUser) {
-      throw new BadRequestException('Email already exists!', {
-        cause: new Error(),
-        description: 'This email is already registered by another user.',
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    createUserDto.password = hashedPassword;
-
+  async createUser(payload: CreatePayload): Promise<CreateResponse> {
     return this.prisma.user.create({
-      data: createUserDto,
+      data: payload,
       select: {
         id: true,
         name: true,
@@ -83,6 +73,7 @@ export class UsersService {
     const refreshToken = this.tokenService.generateRefreshToken(payload);
 
     return {
+      message: 'Login Successful',
       user: payload,
       accessToken: accessToken.token,
       refreshToken: refreshToken.token,

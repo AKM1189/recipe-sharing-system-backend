@@ -1,10 +1,16 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from 'src/users/users.service';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './TokenService';
 import { User } from './interfaces/auth.interface';
 import { RefreshTokensService } from 'src/refresh-tokens/refresh-tokens.service';
 import { randomUUID } from 'crypto';
+import { SignupDto } from './dto/signup.dto';
+import { LogoutDto } from './dto/logout.dto';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +34,28 @@ export class AuthService {
     return result;
   }
 
+  async signup(dto: SignupDto) {
+    const { email, password } = dto;
+    const existingUser = await this.usersService.findOneByEmail(email);
+
+    if (existingUser) {
+      throw new BadRequestException('Email already exists!', {
+        cause: new Error(),
+        description: 'This email is already registered by another user.',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    dto.password = hashedPassword;
+
+    const user = await this.usersService.createUser(dto);
+
+    return {
+      message: 'Signup successful',
+      user,
+    };
+  }
+
   async login(user: User, deviceId: string | undefined) {
     const device = deviceId ?? randomUUID();
     const accessToken = await this.tokenService.generateAccessToken(user);
@@ -44,6 +72,7 @@ export class AuthService {
     );
 
     return {
+      message: 'Login Successful',
       user,
       accessToken: accessToken.token,
       accessTokenExpiresIn: accessToken.expireTime,
@@ -74,5 +103,13 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('4 Invalid refresh token');
 
     return this.login(user, tokenData.device ?? '');
+  }
+
+  async logout(userId: string, deviceId: string) {
+    await this.refreshTokenService.delete(userId, deviceId);
+
+    return {
+      message: 'Logout Successful',
+    };
   }
 }

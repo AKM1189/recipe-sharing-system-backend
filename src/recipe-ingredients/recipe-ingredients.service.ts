@@ -27,7 +27,7 @@ export class RecipeIngredientsService {
               recipeId: recipeId,
             },
           },
-          update: { quantity: item.quantity },
+          update: { quantity: item.quantity, unit: item.unit },
           create: { ...item, recipeId },
         }),
       ),

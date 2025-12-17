@@ -36,6 +36,7 @@ export class CreateRecipeDto {
   ingredients: {
     name: string;
     quantity: string;
+    unit: string;
   }[];
 
   @IsNotEmpty()

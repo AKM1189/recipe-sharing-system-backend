@@ -16,6 +16,7 @@ export class RefreshTokensService {
         },
       },
       select: {
+        id: true,
         token: true,
         userId: true,
         device: true,
@@ -52,6 +53,15 @@ export class RefreshTokensService {
       });
     } catch (error) {
       throw new Error(error);
+    }
+  }
+
+  async delete(userId: string, deviceId: string) {
+    const existingToken = await this.findOne(userId, deviceId);
+    if (existingToken) {
+      return await this.prisma.refreshToken.delete({
+        where: { id: existingToken.id },
+      });
     }
   }
 }
