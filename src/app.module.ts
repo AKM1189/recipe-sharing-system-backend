@@ -12,6 +12,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { RefreshTokensService } from './refresh-tokens/refresh-tokens.service';
 import { RefreshTokensModule } from './refresh-tokens/refresh-tokens.module';
+import { R2Service } from './r2.service';
+import { ImagesController } from './images.controller';
 
 @Module({
   imports: [
@@ -26,7 +28,7 @@ import { RefreshTokensModule } from './refresh-tokens/refresh-tokens.module';
     TagsModule,
     RefreshTokensModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, RefreshTokensService],
+  controllers: [AppController, ImagesController],
+  providers: [AppService, RefreshTokensService, R2Service],
 })
 export class AppModule {}

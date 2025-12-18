@@ -14,7 +14,7 @@ export class CreateRecipeDto {
   description: string;
 
   @IsEmpty()
-  imageUrl: string;
+  image: File;
 
   @IsNumber()
   @IsNotEmpty()

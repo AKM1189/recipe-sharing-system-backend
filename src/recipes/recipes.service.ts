@@ -17,7 +17,7 @@ export class RecipesService {
     const {
       title,
       description,
-      imageUrl,
+      image,
       cookingTime,
       serving,
       difficulty,
@@ -27,7 +27,7 @@ export class RecipesService {
     const data = {
       title,
       description,
-      imageUrl,
+      imageUrl: image,
       cookingTime,
       serving,
       difficulty,
