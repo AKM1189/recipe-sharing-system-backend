@@ -7,18 +7,56 @@ import {
   Param,
   Delete,
   Request,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
+  UseInterceptors,
+  UploadedFiles,
+  UseGuards,
+  ParseIntPipe,
+  HttpException,
 } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
-import { CreateRecipeDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { sendResponse } from 'src/common/api-response';
 
 @Controller('recipes')
+@UseGuards(JwtAuthGuard)
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
+  @Get()
+  async getRecipes() {
+    const recipes = await this.recipesService.recipes({});
+    return sendResponse(200, recipes);
+  }
+
   @Post()
-  create(@Body() createRecipeDto: CreateRecipeDto, @Request() request) {
-    return this.recipesService.create(createRecipeDto, request.user);
+  @UseInterceptors(AnyFilesInterceptor())
+  create(
+    @Body() createRecipeDto,
+    @Request() request,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5_000_000 }),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|webp)$/,
+          }),
+        ],
+        fileIsRequired: false, // allow recipe without image
+      }),
+    )
+    files: Array<Express.Multer.File>,
+  ) {
+    const recipe = this.recipesService.create(
+      createRecipeDto,
+      request.user,
+      files,
+    );
+    return sendResponse(200, recipe, 'Recipe added successfully.');
   }
 
   @Get()
@@ -27,8 +65,10 @@ export class RecipesController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.recipesService.findOne(+id);
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    const recipe = await this.recipesService.findOne(+id);
+    if (!recipe) throw new HttpException('Recipe not found', 404);
+    return sendResponse(200, recipe);
   }
 
   @Patch(':id')

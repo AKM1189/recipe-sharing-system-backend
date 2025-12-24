@@ -11,6 +11,7 @@ import { RefreshTokensService } from 'src/refresh-tokens/refresh-tokens.service'
 import { randomUUID } from 'crypto';
 import { SignupDto } from './dto/signup.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { TokenResponse } from 'src/users/interfaces/token.interface';
 
 @Injectable()
 export class AuthService {
@@ -57,18 +58,9 @@ export class AuthService {
   }
 
   async login(user: User, deviceId: string | undefined) {
-    const device = deviceId ?? randomUUID();
-    const accessToken = await this.tokenService.generateAccessToken(user);
-    const refreshToken = await this.tokenService.generateRefreshToken({
-      ...user,
-      device,
-    });
-
-    await this.refreshTokenService.save(
-      user.id,
-      refreshToken.token,
-      device,
-      refreshToken.expireTime,
+    const { accessToken, refreshToken, device } = await this.generateTokens(
+      user,
+      deviceId,
     );
 
     return {
@@ -102,7 +94,20 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('4 Invalid refresh token');
 
-    return this.login(user, tokenData.device ?? '');
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+      device,
+    } = await this.generateTokens(user, tokenData.device);
+
+    return {
+      user,
+      accessToken: accessToken.token,
+      accessTokenExpiresIn: accessToken.expireTime,
+      refreshToken: newRefreshToken.token,
+      refreshTokenExpiresIn: newRefreshToken.expireTime,
+      deviceId: device,
+    };
   }
 
   async logout(userId: string, deviceId: string) {
@@ -111,5 +116,30 @@ export class AuthService {
     return {
       message: 'Logout Successful',
     };
+  }
+
+  async generateTokens(
+    user: User,
+    deviceId: string | undefined | null,
+  ): Promise<{
+    accessToken: TokenResponse;
+    refreshToken: TokenResponse;
+    device: string;
+  }> {
+    const device = deviceId ?? randomUUID();
+    const accessToken = await this.tokenService.generateAccessToken(user);
+    const refreshToken = await this.tokenService.generateRefreshToken({
+      ...user,
+      device,
+    });
+
+    await this.refreshTokenService.save(
+      user.id,
+      refreshToken.token,
+      device,
+      refreshToken.expireTime,
+    );
+
+    return { accessToken, refreshToken, device };
   }
 }

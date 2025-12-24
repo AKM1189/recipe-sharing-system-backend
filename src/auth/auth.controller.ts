@@ -42,13 +42,13 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('/me')
+  @Get('me')
   async getProfile(@Request() request) {
     return request.user;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('/refresh')
+  // @UseGuards(JwtAuthGuard)
+  @Post('refresh')
   async refresh(@Body() body) {
     return this.authService.refresh(body.refreshToken);
   }

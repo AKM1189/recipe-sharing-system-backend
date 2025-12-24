@@ -1,54 +1,82 @@
-import { IsEmpty, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsEmpty,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import {
   RecipeDifficulty,
   RecipeStatus,
 } from '../interfaces/recipes.interface';
+import { Transform, Type } from 'class-transformer';
+
+export class IngredientDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  quantity: string;
+
+  @IsString()
+  unit: string;
+}
+
+export class StepDto {
+  @IsString()
+  stepNumber: string;
+
+  @IsString()
+  instruction: string;
+
+  @IsOptional()
+  imageUrl?: string;
+}
 
 export class CreateRecipeDto {
   @IsString()
-  @IsNotEmpty()
   title: string;
 
   @IsString()
-  @IsNotEmpty()
   description: string;
 
-  @IsEmpty()
-  image: File;
-
-  @IsNumber()
-  @IsNotEmpty()
-  cookingTime: number;
-
-  @IsNumber()
-  @IsNotEmpty()
-  serving: number;
+  @IsString()
+  cookingTime: string;
 
   @IsString()
-  @IsNotEmpty()
+  serving: string;
+
+  @IsOptional()
+  imageUrl?: string;
+
+  //   @IsEnum(['EASY', 'MEDIUM', 'HARD'])
+  // difficulty: string;
+
+  // @IsEnum(['Draft', 'Published'])
+  // status: string;
+
+  @IsString()
   difficulty: RecipeDifficulty;
 
   @IsString()
-  @IsNotEmpty()
   status: RecipeStatus;
 
-  @IsNotEmpty()
-  ingredients: {
-    name: string;
-    quantity: string;
-    unit: string;
-  }[];
+  @ArrayNotEmpty({ message: 'Ingredients cannot be empty' })
+  @ValidateNested({ each: true })
+  @Type(() => IngredientDto)
+  ingredients: IngredientDto[];
 
-  @IsNotEmpty()
-  steps: {
-    stepNumber: number;
-    instruction: string;
-    imageUrl?: string;
-  }[];
+  @ArrayNotEmpty({ message: 'Directions cannot be empty' })
+  @ValidateNested({ each: true })
+  @Type(() => StepDto)
+  steps: StepDto[];
 
-  @IsNotEmpty()
-  categories: number[];
+  @ArrayNotEmpty({ message: 'Categories cannot be empty' })
+  categories: string[];
 
-  @IsNotEmpty()
-  tags: string[];
+  // @IsNotEmpty()
+  // tags: string[];
 }

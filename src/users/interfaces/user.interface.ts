@@ -4,7 +4,7 @@ export interface CreatePayload {
   password: string;
 }
 
-export interface CreateResponse {
+export interface UserInterface {
   id: string;
   name: string;
   email: string;
@@ -12,7 +12,7 @@ export interface CreateResponse {
 
 export interface LoginResponse {
   message: string;
-  user: CreateResponse;
+  user: UserInterface;
   accessToken: string;
   refreshToken: string;
   accessTokenExpireTime: Date;

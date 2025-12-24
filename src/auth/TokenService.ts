@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { env } from 'prisma/config';
 
@@ -12,7 +12,7 @@ export class TokenService {
   constructor(private jwt: JwtService) {}
   private readonly accessTokenSecret = env('ACCESS_TOKEN_SECRET');
   private readonly refreshTokenSecret = env('REFRESH_TOKEN_SECRET');
-  private readonly accessTokenExpiration = '1m';
+  private readonly accessTokenExpiration = '15m';
   private readonly refreshTokenExpiration = '1d';
 
   async generateAccessToken(payload: any): Promise<TokenResponse> {
@@ -22,7 +22,7 @@ export class TokenService {
     });
 
     const expireTime = new Date();
-    expireTime.setHours(expireTime.getMinutes() + 1);
+    expireTime.setHours(expireTime.getMinutes() + 15);
 
     return { token, expireTime };
   }
@@ -34,20 +34,36 @@ export class TokenService {
     });
 
     const expireTime = new Date();
-    expireTime.setHours(expireTime.getDate() + 1);
+    expireTime.setDate(expireTime.getDate() + 1);
 
     return { token, expireTime };
   }
 
   verifyAccessToken(token: string) {
-    return this.jwt.verifyAsync(token, {
-      secret: this.accessTokenSecret,
-    });
+    try {
+      return this.jwt.verifyAsync(token, {
+        secret: this.accessTokenSecret,
+      });
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Access token expired');
+      }
+
+      throw new UnauthorizedException('Invalid access token');
+    }
   }
 
   verifyRefreshToken(token: string) {
-    return this.jwt.verify(token, {
-      secret: this.refreshTokenSecret,
-    });
+    try {
+      return this.jwt.verify(token, {
+        secret: this.refreshTokenSecret,
+      });
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token expired');
+      }
+
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 }

@@ -7,7 +7,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import {
   CreatePayload,
-  CreateResponse,
+  UserInterface,
   LoginResponse,
 } from './interfaces/user.interface';
 import * as bcrypt from 'bcrypt';
@@ -23,7 +23,7 @@ export class UsersService {
     private tokenService: TokenService,
   ) {}
 
-  async createUser(payload: CreatePayload): Promise<CreateResponse> {
+  async createUser(payload: CreatePayload): Promise<UserInterface> {
     return this.prisma.user.create({
       data: payload,
       select: {

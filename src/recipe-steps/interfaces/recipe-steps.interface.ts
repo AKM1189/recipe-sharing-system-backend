@@ -1,5 +1,5 @@
 export interface StepsPayload {
   stepNumber: number;
   instruction: string;
-  imageUrl?: string;
+  imageUrl?: string | null;
 }
