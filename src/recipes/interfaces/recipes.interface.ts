@@ -10,3 +10,14 @@ export enum RecipeStatus {
   PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
 }
+
+export interface RecipePayload {
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  cookingTime: number;
+  serving: number;
+  difficulty: RecipeDifficulty;
+  status: RecipeStatus;
+  userId: string;
+}

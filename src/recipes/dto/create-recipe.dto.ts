@@ -16,6 +16,10 @@ import { Transform, Type } from 'class-transformer';
 
 export class IngredientDto {
   @IsString()
+  @IsOptional()
+  id?: string;
+
+  @IsString()
   name: string;
 
   @IsString()
@@ -26,6 +30,10 @@ export class IngredientDto {
 }
 
 export class StepDto {
+  @IsString()
+  @IsOptional()
+  stepId?: string;
+
   @IsString()
   stepNumber: string;
 

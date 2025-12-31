@@ -15,6 +15,7 @@ import { CategoriesService } from 'src/categories/categories.service';
 import { StepsPayload } from 'src/recipe-steps/interfaces/recipe-steps.interface';
 import { IngredientsPayload } from 'src/recipe-ingredients/interfaces/recipe-ingredients.interface';
 import { ApiResponse } from 'src/common/api-response.interface';
+import { RecipePayload } from './interfaces/recipes.interface';
 
 @Injectable()
 export class RecipesService {
@@ -26,20 +27,9 @@ export class RecipesService {
     private r2Service: R2Service,
   ) {}
 
-  async recipes(params: {
-    skip?: number;
-    take?: number;
-    cursor?: any;
-    where?: any;
-    orderBy?: any;
-  }): Promise<Recipe[]> {
-    const { skip, take, cursor, where, orderBy } = params;
+  async recipes(params: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
     return this.prisma.recipe.findMany({
-      skip,
-      take,
-      cursor,
-      where,
-      orderBy,
+      ...params,
       include: {
         categories: {
           include: {
@@ -58,18 +48,12 @@ export class RecipesService {
     if (!user) {
       throw new HttpException('User not found', 404);
     }
-    const uploads = await this.uploadAllFiles(dto, files);
+    const { steps, recipeImageKey, uploadedKeys } = await this.uploadAllFiles(
+      dto,
+      files,
+    );
 
-    const data = {
-      title: dto.title,
-      description: dto.description,
-      imageUrl: uploads.recipeImageKey,
-      cookingTime: parseInt(dto.cookingTime),
-      serving: parseInt(dto.serving),
-      difficulty: dto.difficulty,
-      status: dto.status,
-      userId: user.id,
-    };
+    const data = this.buildRecipeCreatePayload(dto, recipeImageKey, user);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -78,14 +62,19 @@ export class RecipesService {
         });
 
         await this.attachCategories(recipe.id, dto.categories, tx);
-        await this.attachIngredients(recipe.id, dto.ingredients, tx);
-        await this.attachSteps(recipe.id, uploads.steps, tx);
+        await this.recipeIngredientService.create(
+          recipe.id,
+          dto.ingredients,
+          tx,
+        );
+
+        await this.recipeStepService.create(recipe.id, steps, tx);
 
         return recipe;
       });
     } catch (err) {
       await Promise.all(
-        uploads.uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
+        uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
       );
       throw err;
     }
@@ -97,35 +86,68 @@ export class RecipesService {
   ) {
     const uploadedKeys: string[] = [];
 
-    const steps = await Promise.all(
-      dto.steps.map(async (step, index) => {
+    const {
+      stepImageMap,
+      uploadedKeys: stepUploadedKeys,
+      toDeleteKeys,
+    } = await this.uploadStepImages(dto.steps, files);
+
+    uploadedKeys.push(...stepUploadedKeys);
+
+    const recipeImageKey = await this.uploadRecipeImage(files);
+    if (recipeImageKey) uploadedKeys.push(recipeImageKey);
+
+    const steps = await this.buildStepsPayload(dto.steps, stepImageMap);
+
+    return { steps, recipeImageKey, uploadedKeys, toDeleteKeys };
+  }
+
+  async uploadRecipeImage(files: Array<Express.Multer.File>) {
+    const recipeImage = files.find((f) => f.fieldname === 'recipeImage');
+    return recipeImage
+      ? await this.r2Service.uploadPublicImage(recipeImage)
+      : null;
+  }
+
+  async uploadStepImages(steps: StepDto[], files: Array<Express.Multer.File>) {
+    const uploadedKeys: string[] = [];
+    const toDeleteKeys: string[] = [];
+    const stepImageMap = new Map<number, string | null>();
+
+    await Promise.all(
+      steps.map(async (step, index) => {
         const stepFile = files.find(
           (f) => f.fieldname === `steps[${index}][image]`,
         );
-        let imageUrl: string | null = null;
+        let imageUrl: string | null = step.imageUrl || null;
 
         if (stepFile) {
+          if (imageUrl) toDeleteKeys.push(imageUrl);
+
           imageUrl = await this.r2Service.uploadPublicImage(stepFile);
           uploadedKeys.push(imageUrl);
         }
 
-        return {
-          stepNumber: parseInt(step.stepNumber),
-          instruction: step.instruction,
-          imageUrl,
-        };
+        stepImageMap.set(index, imageUrl);
       }),
     );
+    return {
+      stepImageMap,
+      uploadedKeys,
+      toDeleteKeys,
+    };
+  }
 
-    const recipeImage = files.find((f) => f.fieldname === 'recipeImage');
-    let recipeImageKey: string | null = null;
-
-    if (recipeImage) {
-      recipeImageKey = await this.r2Service.uploadPublicImage(recipeImage);
-      uploadedKeys.push(recipeImageKey);
-    }
-
-    return { steps, recipeImageKey, uploadedKeys };
+  async buildStepsPayload(
+    steps: StepDto[],
+    stepImageMap: Map<number, string | null>,
+  ) {
+    return steps.map((step, index) => ({
+      id: this.formatId(step.stepId),
+      stepNumber: Number(step.stepNumber),
+      instruction: step.instruction,
+      imageUrl: stepImageMap.get(index) ?? null,
+    }));
   }
 
   async attachCategories(
@@ -146,22 +168,6 @@ export class RecipesService {
     }
   }
 
-  async attachIngredients(
-    recipeId: number,
-    ingredients: IngredientDto[],
-    tx: Prisma.TransactionClient,
-  ) {
-    await this.recipeIngredientService.create(recipeId, ingredients, tx);
-  }
-
-  async attachSteps(
-    recipeId: number,
-    steps: StepsPayload[],
-    tx: Prisma.TransactionClient,
-  ) {
-    await this.recipeStepService.create(recipeId, steps, tx);
-  }
-
   findAll() {
     return `This action returns all recipes`;
   }
@@ -169,52 +175,138 @@ export class RecipesService {
   async findOne(id: number) {
     return await this.prisma.recipe.findUnique({
       where: { id },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        ingredients: true,
+        steps: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
   }
 
-  async update(id: number, updateRecipeDto: UpdateRecipeDto) {
-    const recipe = this.findOne(id);
+  async update(
+    id: number,
+    dto: UpdateRecipeDto,
+    files: Array<Express.Multer.File>,
+  ): Promise<Recipe> {
+    const recipe = await this.findOne(id);
+    let deletedStepsImgKeys: string[] = [];
 
     if (!recipe) {
       throw new HttpException('Recipe not found', 404);
     }
 
-    const data = this.getUpdateData(updateRecipeDto);
+    if (dto?.deletedSteps?.length > 0) {
+      await Promise.all(
+        dto.deletedSteps.map(async (id) => {
+          const step = await this.recipeStepService.findOne(Number(id));
+          if (step?.imageUrl) deletedStepsImgKeys.push(step.imageUrl);
+        }),
+      );
+    }
+    const { steps, recipeImageKey, uploadedKeys, toDeleteKeys } =
+      await this.uploadAllFiles(dto, files);
+    if (toDeleteKeys.length > 0) {
+      toDeleteKeys.map((key) => deletedStepsImgKeys.push(key));
+    }
 
-    // try {
-    //   return await this.prisma.$transaction(async (tx) => {
-    //     const recipe = await tx.recipe.update({
-    //       data,
-    //       where: { id },
-    //     });
+    const recipeData = this.buildRecipeUpdatePayload(dto, recipeImageKey);
 
-    //     await this.attachCategories(recipe.id, dto.categories, tx);
-    //     await this.attachIngredients(recipe.id, dto.ingredients, tx);
-    //     await this.attachSteps(recipe.id, uploads.steps, tx);
+    try {
+      const recipe = await this.prisma.$transaction(async (tx) => {
+        const recipe = await tx.recipe.update({
+          data: recipeData,
+          where: { id },
+        });
 
-    //     return recipe;
-    //   });
-    // } catch (err) {
-    //   await Promise.all(
-    //     uploads.uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
-    //   );
-    //   throw err;
-    // }
-  }
+        await this.attachCategories(recipe.id, dto.categories, tx);
 
-  private getUpdateData(dto: UpdateRecipeDto) {
-    const updateData: Prisma.RecipeUpdateInput = {};
-    if (dto.title) updateData.title = dto.title;
-    if (dto.description) updateData.description = dto.description;
-    if (dto.cookingTime !== undefined)
-      updateData.cookingTime = Number(dto.cookingTime);
-    if (dto.serving !== undefined) updateData.serving = Number(dto.serving);
-    if (dto.difficulty) updateData.difficulty = dto.difficulty;
-    if (dto.status) updateData.status = dto.status;
-    return updateData;
+        const formattedIngredients = dto.ingredients.map((ingredient) => ({
+          ...ingredient,
+          id: this.formatId(ingredient.id),
+        }));
+        await this.recipeIngredientService.updateByRecipe(
+          recipe.id,
+          formattedIngredients,
+          dto.deletedIngredients,
+          tx,
+        );
+
+        await this.recipeStepService.updateByRecipe(
+          recipe.id,
+          steps,
+          dto.deletedSteps,
+          tx,
+        );
+
+        return recipe;
+      });
+      if (deletedStepsImgKeys.length > 0) {
+        await Promise.all(
+          deletedStepsImgKeys.map((key) => this.r2Service.deleteImage(key)),
+        );
+      }
+      return recipe;
+    } catch (err) {
+      await Promise.all(
+        uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
+      );
+      throw err;
+    }
   }
 
   remove(id: number) {
     return `This action removes a #${id} recipe`;
+  }
+
+  formatId(id?: string): number | undefined {
+    if (!id || id === '0') return undefined;
+    return Number(id);
+  }
+
+  buildRecipeCreatePayload(
+    dto: CreateRecipeDto,
+    recipeImageKey: string | null,
+    user: UserInterface,
+  ): Prisma.RecipeCreateInput {
+    return {
+      title: dto.title,
+      description: dto.description,
+      imageUrl: recipeImageKey,
+      cookingTime: parseInt(dto.cookingTime),
+      serving: parseInt(dto.serving),
+      difficulty: dto.difficulty,
+      status: dto.status,
+      user: {
+        connect: {
+          id: user.id,
+        },
+      },
+    };
+  }
+
+  buildRecipeUpdatePayload(
+    dto: UpdateRecipeDto,
+    recipeImageKey: string | null,
+  ): Prisma.RecipeUpdateInput {
+    return {
+      title: dto.title,
+      description: dto.description,
+      imageUrl: recipeImageKey ?? dto.imageUrl ?? null,
+      cookingTime: Number(dto.cookingTime) || 0,
+      serving: Number(dto.serving) || 0,
+      difficulty: dto.difficulty,
+      status: dto.status,
+    };
   }
 }

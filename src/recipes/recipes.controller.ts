@@ -15,6 +15,7 @@ import {
   UseGuards,
   ParseIntPipe,
   HttpException,
+  Put,
 } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
@@ -23,7 +24,6 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { sendResponse } from 'src/common/api-response';
 
 @Controller('recipes')
-@UseGuards(JwtAuthGuard)
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
@@ -34,6 +34,7 @@ export class RecipesController {
   }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(AnyFilesInterceptor())
   create(
     @Body() createRecipeDto,
@@ -71,12 +72,31 @@ export class RecipesController {
     return sendResponse(200, recipe);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRecipeDto: UpdateRecipeDto) {
-    return this.recipesService.update(+id, updateRecipeDto);
+  @Put(':id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(AnyFilesInterceptor())
+  update(
+    @Param('id') id: string,
+    @Body() updateRecipeDto: UpdateRecipeDto,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 5_000_000 }),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png|webp)$/,
+          }),
+        ],
+        fileIsRequired: false, // allow recipe without image
+      }),
+    )
+    files: Array<Express.Multer.File>,
+  ) {
+    console.log('update dto', updateRecipeDto);
+    return this.recipesService.update(+id, updateRecipeDto, files);
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
   remove(@Param('id') id: string) {
     return this.recipesService.remove(+id);
   }

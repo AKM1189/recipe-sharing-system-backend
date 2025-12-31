@@ -21,22 +21,79 @@ export class RecipeStepsService {
     });
   }
 
-  async update(recipeId: number, payload: StepsPayload[]) {
-    if (!payload.length) return;
+  async findOne(id: number) {
+    return this.prisma.recipeStep.findUnique({ where: { id } });
+  }
 
-    return await Promise.all(
-      payload.map((item) =>
-        this.prisma.recipeStep.upsert({
-          where: {
-            stepNumber_recipeId: {
-              stepNumber: item.stepNumber,
-              recipeId: recipeId,
-            },
+  async update(
+    id: number,
+    payload: StepsPayload,
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (!payload) return;
+    const client = tx || this.prisma;
+
+    return client.recipeStep.update({
+      where: { id },
+      data: {
+        stepNumber: payload.stepNumber,
+        instruction: payload.instruction,
+        imageUrl: payload.imageUrl ?? null,
+      },
+    });
+  }
+
+  async updateByRecipe(
+    recipeId: number,
+    payload: StepsPayload[],
+    deletedSteps: string[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    if (!payload) return;
+    const client = tx || this.prisma;
+
+    const toDelete =
+      deletedSteps?.length > 0 ? deletedSteps?.map((id) => parseInt(id)) : [];
+
+    if (toDelete.length > 0) {
+      await client.recipeStep.deleteMany({
+        where: { id: { in: toDelete } },
+      });
+    }
+
+    // 4️⃣ Update or Create
+    for (let i = 0; i < payload.length; i++) {
+      const step = payload[i];
+
+      if (step.id) {
+        // UPDATE
+        await client.recipeStep.update({
+          where: { id: step.id },
+          data: {
+            stepNumber: step.stepNumber,
+            instruction: step.instruction,
+            imageUrl: step.imageUrl ?? null,
           },
-          update: { instruction: item.instruction, imageUrl: item.imageUrl },
-          create: { ...item, recipeId },
-        }),
-      ),
-    );
+        });
+      } else {
+        // CREATE
+        await client.recipeStep.create({
+          data: {
+            stepNumber: step.stepNumber,
+            instruction: step.instruction,
+            imageUrl: step.imageUrl ?? null,
+            recipeId,
+          },
+        });
+      }
+    }
+  }
+
+  async deleteByRecipe(recipeId: number, tx?: Prisma.TransactionClient) {
+    const client = tx || this.prisma;
+
+    return await client.recipeStep.deleteMany({
+      where: { recipeId },
+    });
   }
 }

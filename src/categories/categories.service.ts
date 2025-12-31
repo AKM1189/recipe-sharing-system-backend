@@ -4,11 +4,17 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoriesPayload } from './interfaces/categories.interface';
 import { PrismaService } from 'src/prisma/prisma.service';
 import slugify from 'slugify';
-import { Prisma } from '@prisma/client';
+import { Category, Prisma } from '@prisma/client';
 
 @Injectable()
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
+
+  async getMany(params?: Prisma.CategoryFindManyArgs): Promise<Category[]> {
+    return this.prisma.category.findMany({
+      ...params,
+    });
+  }
 
   async create(payload: string[], tx: Prisma.TransactionClient) {
     if (!payload.length) return null;
@@ -17,7 +23,10 @@ export class CategoriesService {
       data.map((category) =>
         tx.category.upsert({
           where: { name: category.name },
-          update: {},
+          update: {
+            name: category.name,
+            slug: category.slug,
+          },
           create: {
             name: category.name,
             slug: category.slug,
