@@ -4,6 +4,8 @@ import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+process.env.TZ = 'UTC';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(
@@ -20,7 +22,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:5000', // Next.js dev
       'http://127.0.0.1:5000', // sometimes needed
-      'https://your-frontend.com', // production
+      'https:Serv//your-frontend.com', // production
     ],
     credentials: true, // IMPORTANT for cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

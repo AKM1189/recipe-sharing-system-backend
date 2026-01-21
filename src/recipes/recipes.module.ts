@@ -10,5 +10,6 @@ import { CategoriesModule } from 'src/categories/categories.module';
   imports: [RecipeIngredientsModule, RecipeStepsModule, CategoriesModule],
   controllers: [RecipesController],
   providers: [RecipesService, R2Service],
+  exports: [RecipesService],
 })
 export class RecipesModule {}

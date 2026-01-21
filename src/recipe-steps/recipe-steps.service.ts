@@ -37,6 +37,7 @@ export class RecipeStepsService {
       where: { id },
       data: {
         stepNumber: payload.stepNumber,
+        title: payload.title,
         instruction: payload.instruction,
         imageUrl: payload.imageUrl ?? null,
       },
@@ -71,6 +72,7 @@ export class RecipeStepsService {
           where: { id: step.id },
           data: {
             stepNumber: step.stepNumber,
+            title: step.title,
             instruction: step.instruction,
             imageUrl: step.imageUrl ?? null,
           },
@@ -80,6 +82,7 @@ export class RecipeStepsService {
         await client.recipeStep.create({
           data: {
             stepNumber: step.stepNumber,
+            title: step.title,
             instruction: step.instruction,
             imageUrl: step.imageUrl ?? null,
             recipeId,

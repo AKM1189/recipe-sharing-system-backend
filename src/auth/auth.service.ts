@@ -10,7 +10,6 @@ import { User } from './interfaces/auth.interface';
 import { RefreshTokensService } from 'src/refresh-tokens/refresh-tokens.service';
 import { randomUUID } from 'crypto';
 import { SignupDto } from './dto/signup.dto';
-import { LogoutDto } from './dto/logout.dto';
 import { TokenResponse } from 'src/users/interfaces/token.interface';
 
 @Injectable()
@@ -24,11 +23,14 @@ export class AuthService {
   async validateUser(email: string, password: string) {
     const user = await this.usersService.findOneByEmail(email);
 
-    if (!user) return null;
+    if (!user) {
+      throw new UnauthorizedException('Invalid Credentials');
+    }
 
     const isPasswordValid = bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) return null;
+    if (!isPasswordValid)
+      throw new UnauthorizedException('Invalid Credentials');
 
     const { password: userPassword, ...result } = user;
 
@@ -72,6 +74,10 @@ export class AuthService {
       refreshTokenExpiresIn: refreshToken.expireTime,
       deviceId: device,
     };
+  }
+
+  getUser(id: string) {
+    return this.usersService.findOneById(id);
   }
 
   async refresh(refreshToken: string) {
@@ -127,9 +133,11 @@ export class AuthService {
     device: string;
   }> {
     const device = deviceId ?? randomUUID();
-    const accessToken = await this.tokenService.generateAccessToken(user);
+    const accessToken = await this.tokenService.generateAccessToken({
+      id: user.id,
+    });
     const refreshToken = await this.tokenService.generateRefreshToken({
-      ...user,
+      id: user.id,
       device,
     });
 

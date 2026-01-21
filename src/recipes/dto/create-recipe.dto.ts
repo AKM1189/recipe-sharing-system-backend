@@ -35,6 +35,9 @@ export class StepDto {
   stepId?: string;
 
   @IsString()
+  title: string;
+
+  @IsString()
   stepNumber: string;
 
   @IsString()

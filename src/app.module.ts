@@ -14,6 +14,13 @@ import { RefreshTokensService } from './refresh-tokens/refresh-tokens.service';
 import { RefreshTokensModule } from './refresh-tokens/refresh-tokens.module';
 import { R2Service } from './r2.service';
 import { ImagesController } from './images.controller';
+import { ReviewModule } from './review/review.module';
+import { FavouriteModule } from './favourites/favourites.module';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { join } from 'path';
+import { env } from 'prisma/config';
+import { EmailChangeRequestsModule } from './email-change-requests/email-change-requests.module';
 
 @Module({
   imports: [
@@ -27,6 +34,29 @@ import { ImagesController } from './images.controller';
     RecipeStepsModule,
     TagsModule,
     RefreshTokensModule,
+    ReviewModule,
+    FavouriteModule,
+    MailerModule.forRoot({
+      transport: {
+        host: 'smtp.gmail.com',
+        port: 465,
+        auth: {
+          user: env('EMAIL_USER'),
+          pass: env('EMAIL_APP_PASSWORD'),
+        },
+      },
+      defaults: {
+        from: '"No Reply" <aungkaungmyat912002@gmail.com>',
+      },
+      template: {
+        dir: join(process.cwd(), 'dist', 'mail', 'templates'),
+        adapter: new HandlebarsAdapter(),
+        options: {
+          strict: true,
+        },
+      },
+    }),
+    EmailChangeRequestsModule,
   ],
   controllers: [AppController, ImagesController],
   providers: [AppService, RefreshTokensService, R2Service],

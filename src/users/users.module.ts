@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
-import { TokenService } from './TokenService';
+import { EmailChangeRequestsModule } from 'src/email-change-requests/email-change-requests.module';
+import { R2Service } from 'src/r2.service';
 
 @Module({
   controllers: [UsersController],
-  providers: [UsersService, TokenService],
+  providers: [UsersService, R2Service],
   exports: [UsersService],
+  imports: [EmailChangeRequestsModule],
 })
 export class UsersModule {}

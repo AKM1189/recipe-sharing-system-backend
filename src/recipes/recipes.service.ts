@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import {
   CreateRecipeDto,
   IngredientDto,
@@ -10,12 +10,8 @@ import { RecipeStepsService } from 'src/recipe-steps/recipe-steps.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { R2Service } from 'src/r2.service';
 import { UserInterface } from 'src/users/interfaces/user.interface';
-import { Prisma, Recipe } from '@prisma/client';
+import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
-import { StepsPayload } from 'src/recipe-steps/interfaces/recipe-steps.interface';
-import { IngredientsPayload } from 'src/recipe-ingredients/interfaces/recipe-ingredients.interface';
-import { ApiResponse } from 'src/common/api-response.interface';
-import { RecipePayload } from './interfaces/recipes.interface';
 
 @Injectable()
 export class RecipesService {
@@ -27,13 +23,84 @@ export class RecipesService {
     private r2Service: R2Service,
   ) {}
 
-  async recipes(params: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
+  async recipes(params?: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
     return this.prisma.recipe.findMany({
       ...params,
+      orderBy: { createdAt: 'desc' },
       include: {
         categories: {
           include: {
             category: true,
+          },
+        },
+      },
+    });
+  }
+
+  recipesByUser(userId: string) {
+    return this.prisma.recipe.findMany({
+      where: { userId },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+  }
+
+  recipesByCategory(category: string) {
+    return this.prisma.recipe.findMany({
+      where: {
+        categories: {
+          some: {
+            category: {
+              name: category,
+            },
+          },
+        },
+      },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+  }
+
+  findOne(id: number) {
+    return this.prisma.recipe.findUnique({
+      where: { id },
+      include: {
+        categories: {
+          include: {
+            category: true,
+          },
+        },
+        ingredients: true,
+        steps: {
+          orderBy: {
+            stepNumber: 'asc',
+          },
+        },
+        reviews: {
+          select: {
+            user: true,
+            id: true,
+            rating: true,
+            description: true,
+            parentId: true,
+            deleted: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
       },
@@ -48,13 +115,13 @@ export class RecipesService {
     if (!user) {
       throw new HttpException('User not found', 404);
     }
+
     const { steps, recipeImageKey, uploadedKeys } = await this.uploadAllFiles(
       dto,
       files,
     );
 
     const data = this.buildRecipeCreatePayload(dto, recipeImageKey, user);
-
     try {
       return await this.prisma.$transaction(async (tx) => {
         const recipe = await tx.recipe.create({
@@ -86,20 +153,24 @@ export class RecipesService {
   ) {
     const uploadedKeys: string[] = [];
 
-    const {
-      stepImageMap,
-      uploadedKeys: stepUploadedKeys,
-      toDeleteKeys,
-    } = await this.uploadStepImages(dto.steps, files);
+    try {
+      const {
+        stepImageMap,
+        uploadedKeys: stepUploadedKeys,
+        toDeleteKeys,
+      } = await this.uploadStepImages(dto.steps, files);
 
-    uploadedKeys.push(...stepUploadedKeys);
+      uploadedKeys.push(...stepUploadedKeys);
 
-    const recipeImageKey = await this.uploadRecipeImage(files);
-    if (recipeImageKey) uploadedKeys.push(recipeImageKey);
+      const recipeImageKey = await this.uploadRecipeImage(files);
+      if (recipeImageKey) uploadedKeys.push(recipeImageKey);
 
-    const steps = await this.buildStepsPayload(dto.steps, stepImageMap);
+      const steps = await this.buildStepsPayload(dto.steps, stepImageMap);
 
-    return { steps, recipeImageKey, uploadedKeys, toDeleteKeys };
+      return { steps, recipeImageKey, uploadedKeys, toDeleteKeys };
+    } catch (err) {
+      throw err;
+    }
   }
 
   async uploadRecipeImage(files: Array<Express.Multer.File>) {
@@ -145,6 +216,7 @@ export class RecipesService {
     return steps.map((step, index) => ({
       id: this.formatId(step.stepId),
       stepNumber: Number(step.stepNumber),
+      title: step.title,
       instruction: step.instruction,
       imageUrl: stepImageMap.get(index) ?? null,
     }));
@@ -168,32 +240,6 @@ export class RecipesService {
     }
   }
 
-  findAll() {
-    return `This action returns all recipes`;
-  }
-
-  async findOne(id: number) {
-    return await this.prisma.recipe.findUnique({
-      where: { id },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-        ingredients: true,
-        steps: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
-  }
-
   async update(
     id: number,
     dto: UpdateRecipeDto,
@@ -201,7 +247,6 @@ export class RecipesService {
   ): Promise<Recipe> {
     const recipe = await this.findOne(id);
     let deletedStepsImgKeys: string[] = [];
-
     if (!recipe) {
       throw new HttpException('Recipe not found', 404);
     }
@@ -287,6 +332,7 @@ export class RecipesService {
       serving: parseInt(dto.serving),
       difficulty: dto.difficulty,
       status: dto.status,
+      rating: 0,
       user: {
         connect: {
           id: user.id,
@@ -308,5 +354,33 @@ export class RecipesService {
       difficulty: dto.difficulty,
       status: dto.status,
     };
+  }
+
+  async addRating(recipeId: number, tx: Prisma.TransactionClient) {
+    const recipe = await this.findOne(recipeId);
+    if (!recipe) throw new BadRequestException('Recipe not found!');
+
+    const client = tx ?? this.prisma;
+
+    let totalRating = 0;
+    recipe?.reviews.map((review) => {
+      if (!review.deleted) totalRating += review.rating ?? 0;
+    }, 0);
+
+    const totalLength = recipe?.reviews.filter(
+      (review) => review.rating && !review.deleted,
+    ).length;
+
+    if (totalRating && totalLength) {
+      const avgRating = totalRating / totalLength;
+      recipe.rating = new Prisma.Decimal(avgRating);
+    }
+
+    await client.recipe.update({
+      where: { id: recipeId },
+      data: {
+        rating: recipe.rating,
+      },
+    });
   }
 }

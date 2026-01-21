@@ -1,26 +1,27 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import {
-  CreatePayload,
-  UserInterface,
-  LoginResponse,
-} from './interfaces/user.interface';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CreatePayload, UserInterface } from './interfaces/user.interface';
 import * as bcrypt from 'bcrypt';
-import { LoginUserDto } from './dto/login-user.dto';
-import { TokenService } from './TokenService';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UpdateEmailDto } from './dto/update-email.dto';
+import { MailerService } from '@nestjs-modules/mailer';
+import { randomBytes } from 'crypto';
+import { EmailChangeRequestsService } from 'src/email-change-requests/email-change-requests.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { R2Service } from 'src/r2.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private tokenService: TokenService,
+    private mailerService: MailerService,
+    private emailChangeRequestsService: EmailChangeRequestsService,
+    private r2Service: R2Service,
   ) {}
 
   async createUser(payload: CreatePayload): Promise<UserInterface> {
@@ -34,84 +35,6 @@ export class UsersService {
     });
   }
 
-  async login(loginUserDto: LoginUserDto): Promise<LoginResponse> {
-    const { email, password } = loginUserDto;
-
-    const existingUser = await this.prisma.user.findFirst({
-      where: { email },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        password: true,
-      },
-    });
-
-    if (!existingUser) {
-      throw new UnauthorizedException('Invalid Credentials', {
-        cause: new Error(),
-        description: 'Invalid email or password',
-      });
-    }
-
-    const isPasswordValid = bcrypt.compare(password, existingUser.password);
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid Credentials', {
-        cause: new Error(),
-        description: 'Invalid email or password',
-      });
-    }
-
-    const payload = {
-      id: existingUser.id,
-      name: existingUser.name,
-      email: existingUser.email,
-    };
-
-    const accessToken = this.tokenService.generateAccessToken(payload);
-    const refreshToken = this.tokenService.generateRefreshToken(payload);
-
-    return {
-      message: 'Login Successful',
-      user: payload,
-      accessToken: accessToken.token,
-      refreshToken: refreshToken.token,
-      accessTokenExpireTime: accessToken.expireTime,
-      refreshTokenExpireTime: refreshToken.expireTime,
-    };
-  }
-
-  async refreshTokens(refreshTokenDto: RefreshTokenDto) {
-    const decode = this.tokenService.verifyRefreshToken(
-      refreshTokenDto.refreshToken,
-    );
-
-    const existingUser = await this.prisma.user.findUnique({
-      where: { id: decode.id },
-    });
-
-    if (!existingUser) {
-      throw new UnauthorizedException();
-    }
-
-    const payload = {
-      id: existingUser.id,
-      name: existingUser.name,
-      email: existingUser.email,
-    };
-
-    const accessToken = this.tokenService.generateAccessToken(payload);
-    const refreshToken = this.tokenService.generateRefreshToken(payload);
-
-    return {
-      accessToken: accessToken.token,
-      refreshToken: refreshToken.token,
-      accessTokenExpireTime: accessToken.expireTime,
-      refreshTokenExpireTime: refreshToken.expireTime,
-    };
-  }
-
   findOneById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
@@ -119,6 +42,8 @@ export class UsersService {
         id: true,
         name: true,
         email: true,
+        profileUrl: true,
+        phoneNo: true,
       },
     });
   }
@@ -146,15 +71,142 @@ export class UsersService {
         id: true,
         name: true,
         email: true,
+        profileUrl: true,
+        phoneNo: true,
       },
     });
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async updateProfile(
+    id: string,
+    updateUserDto: UpdateProfileDto,
+    file: Express.Multer.File | undefined,
+  ) {
+    const { name, phoneNo } = updateUserDto;
+    let imageKey: string | null = null;
+    const existingUser = await this.findOne(id);
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+    console.log('image key ✅', file);
+
+    if (file) {
+      imageKey = await this.r2Service.uploadPublicImage(file);
+    }
+    try {
+      return this.prisma.user.update({
+        where: { id },
+        data: {
+          name,
+          phoneNo,
+          profileUrl: imageKey,
+        },
+        select: {
+          name: true,
+          email: true,
+          profileUrl: true,
+          phoneNo: true,
+        },
+      });
+    } catch (err) {
+      if (imageKey) this.r2Service.deleteImage(imageKey);
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async requestEmailChange(id: string, updateEmailDto: UpdateEmailDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id },
+    });
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isPasswordValid = bcrypt.compare(
+      updateEmailDto.password,
+      existingUser.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid Credentials', {
+        cause: new Error(),
+        description: 'Invalid email or password',
+      });
+    }
+
+    const token = randomBytes(32).toString('hex');
+
+    await this.emailChangeRequestsService.create({
+      userId: existingUser.id,
+      newEmail: updateEmailDto.newEmail,
+      token,
+      expiresAt: new Date(Date.now() + 3600000),
+    });
+
+    await this.sendVerificationEmail(updateEmailDto.newEmail, token);
+    // await this.sendSecurityAlert(user.email);
+
+    // return this.prisma.user.update({
+    //   where: { id },
+    //   data: {
+    //     email: updateEmailDto.newEmail,
+    //   },
+    // });
+  }
+
+  async confirmEmailChange(token: string) {
+    const request = await this.emailChangeRequestsService.findOne(token);
+
+    if (!request || request.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+
+    // Update user and clean up
+    await this.prisma.user.update({
+      where: { id: request.userId },
+      data: {
+        email: request.newEmail,
+      },
+    });
+    await this.emailChangeRequestsService.delete(request.id);
+
+    return { message: 'Email updated successfully' };
+  }
+
+  async sendVerificationEmail(email: string, token: string) {
+    const verificationUrl = `http://localhost:3000/users/change-email-confirm?token=${token}`;
+
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Action Required: Verify your email change',
+      template: './verify-email', // Path relative to the 'dir' set in AppModule
+      context: {
+        url: verificationUrl,
+      },
+    });
+  }
+
+  async changePassword(id: string, dto: ChangePasswordDto) {
+    const existingUser = await this.prisma.user.findUnique({ where: { id } });
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isPasswordValid = bcrypt.compare(
+      dto.oldPassword,
+      existingUser.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid Credentials', {
+        cause: new Error(),
+        description: 'Invalid email or password',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
   }
 }

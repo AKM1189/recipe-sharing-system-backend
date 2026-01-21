@@ -26,15 +26,19 @@ enum RecipeStatus {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  name          String
-  email         String         @unique
-  password      String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime?
-  recipes       Recipe[]
-  favourites    Favourite[]
-  refreshTokens RefreshToken[]
+  id                  String               @id @default(uuid())
+  name                String
+  email               String               @unique
+  password            String
+  phoneNo             String?
+  profileUrl          String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime?
+  recipes             Recipe[]
+  favourites          Favourite[]
+  refreshTokens       RefreshToken[]
+  reviews             Review[]
+  emailChangeRequests EmailChangeRequest[]
 }
 
 model RefreshToken {
@@ -51,6 +55,16 @@ model RefreshToken {
   @@unique([userId, device])
 }
 
+model EmailChangeRequest {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  token     String   @unique
+  newEmail  String
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id])
+}
+
 model Recipe {
   id          Int              @id @default(autoincrement())
   title       String
@@ -60,12 +74,12 @@ model Recipe {
   serving     Int
   difficulty  RecipeDifficulty
   status      RecipeStatus
+  rating      Decimal?         @db.Decimal(5, 2)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
+  userId      String
+  user        User               @relation(fields: [userId], references: [id])
   ingredients RecipeIngredient[]
   steps       RecipeStep[]
   categories  RecipeCategories[]
@@ -88,6 +102,7 @@ model RecipeIngredient {
 model RecipeStep {
   id          Int     @id @default(autoincrement())
   stepNumber  Int
+  title       String?
   instruction String
   imageUrl    String?
   recipe      Recipe  @relation(fields: [recipeId], references: [id])
@@ -127,21 +142,31 @@ model RecipeTag {
 }
 
 model Review {
-  id          Int       @id @default(autoincrement())
-  rating      Decimal
+  id          Int     @id @default(autoincrement())
+  rating      Int?
   description String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime?
-  recipe      Recipe    @relation(fields: [recipeId], references: [id])
   recipeId    Int
+  userId      String
+  parentId    Int?
+  deleted     Boolean @default(false)
+
+  recipe Recipe? @relation(fields: [recipeId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
+
+  parent  Review?  @relation("ReviewReplies", fields: [parentId], references: [id])
+  replies Review[] @relation("ReviewReplies")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
 }
 
 model Favourite {
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   recipeId  Int
-  recipe    Recipe   @relation(fields: [recipeId], references: [id])
   createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  recipe Recipe @relation(fields: [recipeId], references: [id])
 
   @@id([userId, recipeId])
 }

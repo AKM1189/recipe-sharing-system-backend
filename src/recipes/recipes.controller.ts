@@ -29,7 +29,20 @@ export class RecipesController {
 
   @Get()
   async getRecipes() {
-    const recipes = await this.recipesService.recipes({});
+    const recipes = await this.recipesService.recipes();
+    return sendResponse(200, recipes);
+  }
+
+  @Get('category/:category')
+  async getRecipesByCategory(@Param('category') category: string) {
+    const recipes = await this.recipesService.recipesByCategory(category);
+    return sendResponse(200, recipes);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user')
+  async getRecipesByUser(@Request() request) {
+    const recipes = await this.recipesService.recipesByUser(request.user.id);
     return sendResponse(200, recipes);
   }
 
@@ -60,16 +73,16 @@ export class RecipesController {
     return sendResponse(200, recipe, 'Recipe added successfully.');
   }
 
-  @Get()
-  findAll() {
-    return this.recipesService.findAll();
-  }
-
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     const recipe = await this.recipesService.findOne(+id);
+    console.log('recipe', recipe);
     if (!recipe) throw new HttpException('Recipe not found', 404);
-    return sendResponse(200, recipe);
+    const data = {
+      ...recipe,
+      ratingCount: recipe.reviews.filter((review) => review.rating).length,
+    };
+    return sendResponse(200, data);
   }
 
   @Put(':id')
