@@ -49,7 +49,7 @@ export class RecipesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(AnyFilesInterceptor())
-  create(
+  async create(
     @Body() createRecipeDto,
     @Request() request,
     @UploadedFiles(
@@ -65,18 +65,18 @@ export class RecipesController {
     )
     files: Array<Express.Multer.File>,
   ) {
-    const recipe = this.recipesService.create(
+    const recipe = await this.recipesService.create(
       createRecipeDto,
       request.user,
       files,
     );
-    return sendResponse(200, recipe, 'Recipe added successfully.');
+    if (recipe) console.log('recipe', recipe);
+    return sendResponse(200, recipe, 'Recipe created successfully.');
   }
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
     const recipe = await this.recipesService.findOne(+id);
-    console.log('recipe', recipe);
     if (!recipe) throw new HttpException('Recipe not found', 404);
     const data = {
       ...recipe,
@@ -88,7 +88,7 @@ export class RecipesController {
   @Put(':id')
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(AnyFilesInterceptor())
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateRecipeDto: UpdateRecipeDto,
     @UploadedFiles(
@@ -104,7 +104,6 @@ export class RecipesController {
     )
     files: Array<Express.Multer.File>,
   ) {
-    console.log('update dto', updateRecipeDto);
     return this.recipesService.update(+id, updateRecipeDto, files);
   }
 

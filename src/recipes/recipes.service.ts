@@ -12,6 +12,8 @@ import { R2Service } from 'src/r2.service';
 import { UserInterface } from 'src/users/interfaces/user.interface';
 import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
+import OpenAI from 'openai';
+import { LocalStorageService } from 'src/local-storage.service';
 
 @Injectable()
 export class RecipesService {
@@ -20,7 +22,7 @@ export class RecipesService {
     private recipeIngredientService: RecipeIngredientsService,
     private recipeStepService: RecipeStepsService,
     private categoryService: CategoriesService,
-    private r2Service: R2Service,
+    private imageService: LocalStorageService,
   ) {}
 
   async recipes(params?: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
@@ -141,7 +143,7 @@ export class RecipesService {
       });
     } catch (err) {
       await Promise.all(
-        uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
+        uploadedKeys.map((key) => this.imageService.deleteImage(key)),
       );
       throw err;
     }
@@ -176,7 +178,7 @@ export class RecipesService {
   async uploadRecipeImage(files: Array<Express.Multer.File>) {
     const recipeImage = files.find((f) => f.fieldname === 'recipeImage');
     return recipeImage
-      ? await this.r2Service.uploadPublicImage(recipeImage)
+      ? await this.imageService.uploadPublicImage(recipeImage)
       : null;
   }
 
@@ -195,7 +197,7 @@ export class RecipesService {
         if (stepFile) {
           if (imageUrl) toDeleteKeys.push(imageUrl);
 
-          imageUrl = await this.r2Service.uploadPublicImage(stepFile);
+          imageUrl = await this.imageService.uploadPublicImage(stepFile);
           uploadedKeys.push(imageUrl);
         }
 
@@ -246,6 +248,7 @@ export class RecipesService {
     files: Array<Express.Multer.File>,
   ): Promise<Recipe> {
     const recipe = await this.findOne(id);
+    let deletedRecipeImgKey: string | null | undefined = recipe?.imageUrl;
     let deletedStepsImgKeys: string[] = [];
     if (!recipe) {
       throw new HttpException('Recipe not found', 404);
@@ -298,13 +301,17 @@ export class RecipesService {
       });
       if (deletedStepsImgKeys.length > 0) {
         await Promise.all(
-          deletedStepsImgKeys.map((key) => this.r2Service.deleteImage(key)),
+          deletedStepsImgKeys.map((key) => this.imageService.deleteImage(key)),
         );
+      }
+
+      if (recipeImageKey && deletedRecipeImgKey) {
+        await this.imageService.deleteImage(deletedRecipeImgKey);
       }
       return recipe;
     } catch (err) {
       await Promise.all(
-        uploadedKeys.map((key) => this.r2Service.deleteImage(key)),
+        uploadedKeys.map((key) => this.imageService.deleteImage(key)),
       );
       throw err;
     }

@@ -21,6 +21,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { join } from 'path';
 import { env } from 'prisma/config';
 import { EmailChangeRequestsModule } from './email-change-requests/email-change-requests.module';
+import { LocalStorageService } from './local-storage.service';
 
 @Module({
   imports: [
@@ -59,6 +60,6 @@ import { EmailChangeRequestsModule } from './email-change-requests/email-change-
     EmailChangeRequestsModule,
   ],
   controllers: [AppController, ImagesController],
-  providers: [AppService, RefreshTokensService, R2Service],
+  providers: [AppService, RefreshTokensService, R2Service, LocalStorageService],
 })
 export class AppModule {}

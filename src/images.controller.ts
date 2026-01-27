@@ -11,11 +11,11 @@ import {
   MaxFileSizeValidator,
   ParseFilePipe,
 } from '@nestjs/common';
-import { R2Service } from './r2.service';
+import { LocalStorageService } from './local-storage.service';
 
 @Controller('images')
 export class ImagesController {
-  constructor(private readonly r2Service: R2Service) {}
+  constructor(private readonly imageService: LocalStorageService) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -36,12 +36,13 @@ export class ImagesController {
       throw new BadRequestException('Image file is required');
     }
 
-    const imageKey = await this.r2Service.uploadPublicImage(file);
+    const imageKey = await this.imageService.uploadPublicImage(file);
 
     return {
       message: 'Image uploaded successfully',
       imageKey,
-      publicUrl: `${process.env.CDN_BASE_URL}/${imageKey}`,
+      // publicUrl: `${process.env.CDN_BASE_URL}/${imageKey}`,
+      publicUrl: `http://localhost:${process.env.PORT}/${imageKey}`,
     };
   }
 }
