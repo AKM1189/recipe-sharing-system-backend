@@ -36,6 +36,11 @@ export class CategoriesService {
     );
   }
 
+  async findByRecipe(recipeId: number) {
+    return this.prisma.category.findMany({
+      where: { recipes: { some: { recipeId } } },
+    });
+  }
   async createWithRecipe(
     recipeId: number,
     payload: string[],

@@ -16,22 +16,33 @@ import {
   ParseIntPipe,
   HttpException,
   Put,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { sendResponse } from 'src/common/api-response';
+import { Recipe } from '@prisma/client';
 
 @Controller('recipes')
 export class RecipesController {
   constructor(private readonly recipesService: RecipesService) {}
 
   @Get()
-  async getRecipes() {
-    const recipes = await this.recipesService.recipes();
+  async getRecipes(@Query('query') query: string) {
+    let recipes: unknown = [];
+    if (!query) {
+      recipes = await this.recipesService.recipes();
+    } else {
+      recipes = (await this.recipesService.search(query)) ?? [];
+    }
     return sendResponse(200, recipes);
   }
+
+  @Get('/search')
+  async searchRecipe() {}
 
   @Get('category/:category')
   async getRecipesByCategory(@Param('category') category: string) {
@@ -48,7 +59,14 @@ export class RecipesController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(AnyFilesInterceptor())
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      limits: {
+        files: 10,
+        fileSize: 5 * 1024 * 1024, // 5MB each
+      },
+    }),
+  )
   async create(
     @Body() createRecipeDto,
     @Request() request,
@@ -70,7 +88,6 @@ export class RecipesController {
       request.user,
       files,
     );
-    if (recipe) console.log('recipe', recipe);
     return sendResponse(200, recipe, 'Recipe created successfully.');
   }
 
@@ -109,7 +126,7 @@ export class RecipesController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: string) {
-    return this.recipesService.remove(+id);
+  remove(@Param('id') id: string, @Request() request) {
+    return this.recipesService.remove(+id, request.user);
   }
 }

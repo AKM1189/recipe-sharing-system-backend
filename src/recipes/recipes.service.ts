@@ -1,19 +1,19 @@
-import { BadRequestException, HttpException, Injectable } from '@nestjs/common';
 import {
-  CreateRecipeDto,
-  IngredientDto,
-  StepDto,
-} from './dto/create-recipe.dto';
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { CreateRecipeDto, StepDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { RecipeIngredientsService } from 'src/recipe-ingredients/recipe-ingredients.service';
 import { RecipeStepsService } from 'src/recipe-steps/recipe-steps.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { R2Service } from 'src/r2.service';
 import { UserInterface } from 'src/users/interfaces/user.interface';
 import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
-import OpenAI from 'openai';
 import { LocalStorageService } from 'src/local-storage.service';
+import { EmbeddingService } from 'src/embedding/embedding.service';
 
 @Injectable()
 export class RecipesService {
@@ -23,6 +23,7 @@ export class RecipesService {
     private recipeStepService: RecipeStepsService,
     private categoryService: CategoriesService,
     private imageService: LocalStorageService,
+    private embeddingService: EmbeddingService,
   ) {}
 
   async recipes(params?: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
@@ -122,7 +123,6 @@ export class RecipesService {
       dto,
       files,
     );
-
     const data = this.buildRecipeCreatePayload(dto, recipeImageKey, user);
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -139,6 +139,8 @@ export class RecipesService {
 
         await this.recipeStepService.create(recipe.id, steps, tx);
 
+        await this.saveEmbedding(recipe.id, tx);
+
         return recipe;
       });
     } catch (err) {
@@ -147,6 +149,119 @@ export class RecipesService {
       );
       throw err;
     }
+  }
+
+  async update(
+    id: number,
+    dto: UpdateRecipeDto,
+    files: Array<Express.Multer.File>,
+  ): Promise<Recipe> {
+    const recipe = await this.findOne(id);
+    let deletedRecipeImgKey: string | null | undefined = recipe?.imageUrl;
+    let deletedStepsImgKeys: string[] = [];
+    if (!recipe) {
+      throw new HttpException('Recipe not found', 404);
+    }
+
+    if (dto?.deletedSteps?.length > 0) {
+      await Promise.all(
+        dto.deletedSteps.map(async (id) => {
+          const step = await this.recipeStepService.findOne(Number(id));
+          if (step?.imageUrl) deletedStepsImgKeys.push(step.imageUrl);
+        }),
+      );
+    }
+    const { steps, recipeImageKey, uploadedKeys, toDeleteKeys } =
+      await this.uploadAllFiles(dto, files);
+    if (toDeleteKeys.length > 0) {
+      toDeleteKeys.map((key) => deletedStepsImgKeys.push(key));
+    }
+
+    const recipeData = this.buildRecipeUpdatePayload(dto, recipeImageKey);
+
+    try {
+      const recipe = await this.prisma.$transaction(async (tx) => {
+        const recipe = await tx.recipe.update({
+          data: recipeData,
+          where: { id },
+        });
+
+        await this.attachCategories(recipe.id, dto.categories, tx);
+
+        const formattedIngredients = dto.ingredients.map((ingredient) => ({
+          ...ingredient,
+          id: this.formatId(ingredient.id),
+        }));
+        await this.recipeIngredientService.updateByRecipe(
+          recipe.id,
+          formattedIngredients,
+          dto.deletedIngredients,
+          tx,
+        );
+
+        await this.recipeStepService.updateByRecipe(
+          recipe.id,
+          steps,
+          dto.deletedSteps,
+          tx,
+        );
+        await this.saveEmbedding(recipe.id, tx);
+
+        return recipe;
+      });
+      if (deletedStepsImgKeys.length > 0) {
+        await Promise.all(
+          deletedStepsImgKeys.map((key) => this.imageService.deleteImage(key)),
+        );
+      }
+
+      if (recipeImageKey && deletedRecipeImgKey) {
+        await this.imageService.deleteImage(deletedRecipeImgKey);
+      }
+      return recipe;
+    } catch (err) {
+      await Promise.all(
+        uploadedKeys.map((key) => this.imageService.deleteImage(key)),
+      );
+      throw err;
+    }
+  }
+
+  async search(query: string) {
+    const queryEmbedding = await this.embeddingService.embed(query);
+    const queryVector = this.toPgVector(queryEmbedding);
+
+    const results = await this.prisma.$queryRawUnsafe(
+      `SELECT
+        r.*,
+        COALESCE(
+        json_agg(
+        DISTINCT jsonb_build_object(
+        'recipeId', rc."recipeId",
+        'categoryId', rc."categoryId",
+        'category', jsonb_build_object(
+          'id', c.id,
+          'name', c.name,
+          'slug', c.slug
+        )
+        )
+        ) FILTER (WHERE rc."categoryId" IS NOT NULL),
+        '[]'
+        ) AS categories,
+        1 - (s.embedding <=> $1::vector) AS similarity
+        FROM "RecipeSearchIndex" s
+        JOIN "Recipe" r ON r.id = s."recipeId"
+        LEFT JOIN "RecipeCategories" rc ON rc."recipeId" = r.id
+        LEFT JOIN "Category" c ON c.id = rc."categoryId"
+        WHERE r.status = 'PUBLISHED'
+        GROUP BY r.id, s.embedding
+        ORDER BY s.embedding <=> $1::vector
+        LIMIT 20;
+        `,
+      queryVector,
+    );
+
+    return results;
   }
 
   async uploadAllFiles(
@@ -240,85 +355,31 @@ export class RecipesService {
         skipDuplicates: true,
       });
     }
+    return newCategories;
   }
 
-  async update(
-    id: number,
-    dto: UpdateRecipeDto,
-    files: Array<Express.Multer.File>,
-  ): Promise<Recipe> {
-    const recipe = await this.findOne(id);
-    let deletedRecipeImgKey: string | null | undefined = recipe?.imageUrl;
-    let deletedStepsImgKeys: string[] = [];
+  async remove(id: number, user: User) {
+    const toDeleteKeys: string[] = [];
+    const recipe = await this.prisma.recipe.findUnique({
+      where: { id },
+      include: { steps: true },
+    });
     if (!recipe) {
-      throw new HttpException('Recipe not found', 404);
+      throw new NotFoundException('Recipe not found!');
     }
-
-    if (dto?.deletedSteps?.length > 0) {
-      await Promise.all(
-        dto.deletedSteps.map(async (id) => {
-          const step = await this.recipeStepService.findOne(Number(id));
-          if (step?.imageUrl) deletedStepsImgKeys.push(step.imageUrl);
-        }),
+    if (user.id !== recipe.userId) {
+      throw new NotFoundException(
+        'You are not authorized to delete this recipe!',
       );
     }
-    const { steps, recipeImageKey, uploadedKeys, toDeleteKeys } =
-      await this.uploadAllFiles(dto, files);
+    if (recipe.imageUrl) toDeleteKeys.push(recipe.imageUrl);
+    recipe.steps.map(
+      (step) => step.imageUrl && toDeleteKeys.push(step.imageUrl),
+    );
     if (toDeleteKeys.length > 0) {
-      toDeleteKeys.map((key) => deletedStepsImgKeys.push(key));
+      toDeleteKeys.map((key) => this.imageService.deleteImage(key));
     }
-
-    const recipeData = this.buildRecipeUpdatePayload(dto, recipeImageKey);
-
-    try {
-      const recipe = await this.prisma.$transaction(async (tx) => {
-        const recipe = await tx.recipe.update({
-          data: recipeData,
-          where: { id },
-        });
-
-        await this.attachCategories(recipe.id, dto.categories, tx);
-
-        const formattedIngredients = dto.ingredients.map((ingredient) => ({
-          ...ingredient,
-          id: this.formatId(ingredient.id),
-        }));
-        await this.recipeIngredientService.updateByRecipe(
-          recipe.id,
-          formattedIngredients,
-          dto.deletedIngredients,
-          tx,
-        );
-
-        await this.recipeStepService.updateByRecipe(
-          recipe.id,
-          steps,
-          dto.deletedSteps,
-          tx,
-        );
-
-        return recipe;
-      });
-      if (deletedStepsImgKeys.length > 0) {
-        await Promise.all(
-          deletedStepsImgKeys.map((key) => this.imageService.deleteImage(key)),
-        );
-      }
-
-      if (recipeImageKey && deletedRecipeImgKey) {
-        await this.imageService.deleteImage(deletedRecipeImgKey);
-      }
-      return recipe;
-    } catch (err) {
-      await Promise.all(
-        uploadedKeys.map((key) => this.imageService.deleteImage(key)),
-      );
-      throw err;
-    }
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} recipe`;
+    return this.prisma.recipe.delete({ where: { id } });
   }
 
   formatId(id?: string): number | undefined {
@@ -361,6 +422,72 @@ export class RecipesService {
       difficulty: dto.difficulty,
       status: dto.status,
     };
+  }
+
+  async saveEmbedding(recipeId: number, tx: Prisma.TransactionClient) {
+    const { content, vector } = await this.generateEmbedding(recipeId, tx);
+    return tx.$executeRawUnsafe(
+      `INSERT INTO "RecipeSearchIndex" ("recipeId", "content", "embedding")
+    VALUES ($1, $2, $3::vector)
+    ON CONFLICT ("recipeId")
+    DO UPDATE SET
+      "embedding" = EXCLUDED."embedding",
+      "content"   = EXCLUDED."content",
+      "updatedAt" = now();`,
+      recipeId,
+      content,
+      vector,
+    );
+  }
+
+  async updateEmbedding(recipeId: number, tx: Prisma.TransactionClient) {
+    const { content, vector } = await this.generateEmbedding(recipeId, tx);
+
+    return tx.$executeRawUnsafe(
+      `
+    UPDATE "RecipeSearchIndex"
+    SET
+      "content"   = $2,
+      "embedding" = $3::vector,
+      "updatedAt" = now()
+    WHERE "recipeId" = $1
+    `,
+      recipeId,
+      content,
+      vector,
+    );
+  }
+
+  async generateEmbedding(recipeId: number, tx: Prisma.TransactionClient) {
+    const recipe = await tx.recipe.findUnique({
+      where: { id: recipeId },
+      include: {
+        categories: {
+          include: { category: true },
+        },
+        ingredients: true,
+      },
+    });
+
+    const content = this.buildRecipeText(recipe);
+    const embedding = await this.embeddingService.embed(content);
+    const vector = this.toPgVector(embedding);
+
+    return { content, vector };
+  }
+
+  toPgVector(vec: number[]): string {
+    return `[${vec.join(',')}]`;
+  }
+
+  buildRecipeText(recipe: any) {
+    return `Title: ${recipe.title}
+    Description: ${recipe.description}
+    Difficulty: ${recipe.difficulty}
+    Cooking time: ${recipe.cookingTime} minutes
+    Serving: ${recipe.serving}
+    Ingredients: ${recipe.ingredients.map((i) => i.name).join(', ')}
+    Categories: ${recipe.categories.map((c) => c.category.name).join(', ')}`;
   }
 
   async addRating(recipeId: number, tx: Prisma.TransactionClient) {

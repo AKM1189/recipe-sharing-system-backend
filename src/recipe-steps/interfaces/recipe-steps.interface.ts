@@ -5,3 +5,12 @@ export interface StepsPayload {
   instruction: string;
   imageUrl?: string | null;
 }
+
+export interface StepsData {
+  id: number;
+  title: string | null;
+  imageUrl: string | null;
+  stepNumber: number;
+  recipeId: number;
+  instruction: string;
+}

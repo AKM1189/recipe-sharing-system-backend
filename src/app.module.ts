@@ -22,6 +22,8 @@ import { join } from 'path';
 import { env } from 'prisma/config';
 import { EmailChangeRequestsModule } from './email-change-requests/email-change-requests.module';
 import { LocalStorageService } from './local-storage.service';
+import { SearchService } from './search/search.service';
+import { EmbeddingService } from './embedding/embedding.service';
 
 @Module({
   imports: [
@@ -60,6 +62,6 @@ import { LocalStorageService } from './local-storage.service';
     EmailChangeRequestsModule,
   ],
   controllers: [AppController, ImagesController],
-  providers: [AppService, RefreshTokensService, R2Service, LocalStorageService],
+  providers: [AppService, RefreshTokensService, R2Service, LocalStorageService, SearchService, EmbeddingService],
 })
 export class AppModule {}

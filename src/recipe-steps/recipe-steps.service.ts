@@ -7,6 +7,12 @@ import { Prisma } from '@prisma/client';
 export class RecipeStepsService {
   constructor(private prisma: PrismaService) {}
 
+  findByRecipe(recipeId: number) {
+    return this.prisma.recipeStep.findMany({
+      where: { recipeId },
+    });
+  }
+
   async create(
     recipeId: number,
     payload: StepsPayload[],

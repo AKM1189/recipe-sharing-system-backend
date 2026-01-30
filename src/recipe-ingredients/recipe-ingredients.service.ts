@@ -7,6 +7,12 @@ import { Prisma } from '@prisma/client';
 export class RecipeIngredientsService {
   constructor(private prisma: PrismaService) {}
 
+  findByRecipe(recipeId: number) {
+    return this.prisma.recipeIngredient.findMany({
+      where: { recipeId },
+    });
+  }
+
   async create(
     recipeId: number,
     payload: Omit<IngredientsPayload, 'id'>[],

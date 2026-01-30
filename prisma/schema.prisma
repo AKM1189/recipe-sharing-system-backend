@@ -78,14 +78,15 @@ model Recipe {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime?
 
-  userId      String
-  user        User               @relation(fields: [userId], references: [id])
-  ingredients RecipeIngredient[]
-  steps       RecipeStep[]
-  categories  RecipeCategories[]
-  tags        RecipeTag[]
-  reviews     Review[]
-  favourites  Favourite[]
+  userId            String
+  user              User                @relation(fields: [userId], references: [id])
+  ingredients       RecipeIngredient[]
+  steps             RecipeStep[]
+  categories        RecipeCategories[]
+  tags              RecipeTag[]
+  reviews           Review[]
+  favourites        Favourite[]
+  RecipeSearchIndex RecipeSearchIndex[]
 }
 
 model RecipeIngredient {
@@ -94,7 +95,7 @@ model RecipeIngredient {
   recipeId Int
   quantity String
   unit     String
-  recipe   Recipe @relation(fields: [recipeId], references: [id])
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@unique([name, recipeId])
 }
@@ -105,7 +106,7 @@ model RecipeStep {
   title       String?
   instruction String
   imageUrl    String?
-  recipe      Recipe  @relation(fields: [recipeId], references: [id])
+  recipe      Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId    Int
 }
 
@@ -117,7 +118,7 @@ model Category {
 }
 
 model RecipeCategories {
-  recipe     Recipe   @relation(fields: [recipeId], references: [id])
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId   Int
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId Int
@@ -133,7 +134,7 @@ model Tag {
 }
 
 model RecipeTag {
-  recipe   Recipe @relation(fields: [recipeId], references: [id])
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId Int
   tag      Tag    @relation(fields: [tagId], references: [id])
   tagId    Int
@@ -150,8 +151,8 @@ model Review {
   parentId    Int?
   deleted     Boolean @default(false)
 
-  recipe Recipe? @relation(fields: [recipeId], references: [id])
-  user   User?   @relation(fields: [userId], references: [id])
+  recipe Recipe? @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   parent  Review?  @relation("ReviewReplies", fields: [parentId], references: [id])
   replies Review[] @relation("ReviewReplies")
@@ -166,7 +167,16 @@ model Favourite {
   createdAt DateTime @default(now())
 
   user   User   @relation(fields: [userId], references: [id])
-  recipe Recipe @relation(fields: [recipeId], references: [id])
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
   @@id([userId, recipeId])
+}
+
+model RecipeSearchIndex {
+  recipeId  Int                        @id @unique
+  content   String
+  embedding Unsupported("vector(384)")
+  updatedAt DateTime                   @default(now())
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 }

@@ -8,11 +8,8 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import {
-  RecipeDifficulty,
-  RecipeStatus,
-} from '../interfaces/recipes.interface';
 import { Transform, Type } from 'class-transformer';
+import { RecipeDifficulty, RecipeStatus } from '@prisma/client';
 
 export class IngredientDto {
   @IsString()
