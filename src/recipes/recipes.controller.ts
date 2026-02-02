@@ -25,10 +25,15 @@ import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { sendResponse } from 'src/common/api-response';
 import { Recipe } from '@prisma/client';
+import { mapRecipesToListDto, mapRecipeToResponseDto } from './recipe.mapper';
+import { ImageService } from 'src/image/image.service';
 
 @Controller('recipes')
 export class RecipesController {
-  constructor(private readonly recipesService: RecipesService) {}
+  constructor(
+    private readonly recipesService: RecipesService,
+    private readonly imageService: ImageService,
+  ) {}
 
   @Get()
   async getRecipes(@Query('query') query: string) {
@@ -38,23 +43,27 @@ export class RecipesController {
     } else {
       recipes = (await this.recipesService.search(query)) ?? [];
     }
+
+    if (Array.isArray(recipes) && recipes.length > 0) {
+      recipes = mapRecipesToListDto(recipes, this.imageService);
+    }
     return sendResponse(200, recipes);
   }
-
-  @Get('/search')
-  async searchRecipe() {}
 
   @Get('category/:category')
   async getRecipesByCategory(@Param('category') category: string) {
     const recipes = await this.recipesService.recipesByCategory(category);
-    return sendResponse(200, recipes);
+    const data = mapRecipesToListDto(recipes, this.imageService);
+
+    return sendResponse(200, data);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('user')
   async getRecipesByUser(@Request() request) {
     const recipes = await this.recipesService.recipesByUser(request.user.id);
-    return sendResponse(200, recipes);
+    const data = mapRecipesToListDto(recipes, this.imageService);
+    return sendResponse(200, data);
   }
 
   @Post()
@@ -95,10 +104,7 @@ export class RecipesController {
   async findOne(@Param('id', ParseIntPipe) id: number) {
     const recipe = await this.recipesService.findOne(+id);
     if (!recipe) throw new HttpException('Recipe not found', 404);
-    const data = {
-      ...recipe,
-      ratingCount: recipe.reviews.filter((review) => review.rating).length,
-    };
+    const data = mapRecipeToResponseDto(recipe, this.imageService);
     return sendResponse(200, data);
   }
 

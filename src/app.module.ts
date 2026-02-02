@@ -12,8 +12,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { RefreshTokensService } from './refresh-tokens/refresh-tokens.service';
 import { RefreshTokensModule } from './refresh-tokens/refresh-tokens.module';
-import { R2Service } from './r2.service';
-import { ImagesController } from './images.controller';
 import { ReviewModule } from './review/review.module';
 import { FavouriteModule } from './favourites/favourites.module';
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -21,9 +19,9 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
 import { join } from 'path';
 import { env } from 'prisma/config';
 import { EmailChangeRequestsModule } from './email-change-requests/email-change-requests.module';
-import { LocalStorageService } from './local-storage.service';
 import { SearchService } from './search/search.service';
 import { EmbeddingService } from './embedding/embedding.service';
+import { ImageModule } from './image/image.module';
 
 @Module({
   imports: [
@@ -60,8 +58,14 @@ import { EmbeddingService } from './embedding/embedding.service';
       },
     }),
     EmailChangeRequestsModule,
+    ImageModule,
   ],
-  controllers: [AppController, ImagesController],
-  providers: [AppService, RefreshTokensService, R2Service, LocalStorageService, SearchService, EmbeddingService],
+  controllers: [AppController],
+  providers: [
+    AppService,
+    RefreshTokensService,
+    SearchService,
+    EmbeddingService,
+  ],
 })
 export class AppModule {}

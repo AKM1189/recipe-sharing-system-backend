@@ -13,7 +13,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { randomBytes } from 'crypto';
 import { EmailChangeRequestsService } from 'src/email-change-requests/email-change-requests.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { R2Service } from 'src/r2.service';
+import { ImageService } from 'src/image/image.service';
 
 @Injectable()
 export class UsersService {
@@ -21,7 +21,7 @@ export class UsersService {
     private prisma: PrismaService,
     private mailerService: MailerService,
     private emailChangeRequestsService: EmailChangeRequestsService,
-    private r2Service: R2Service,
+    private imageService: ImageService,
   ) {}
 
   async createUser(payload: CreatePayload): Promise<UserInterface> {
@@ -35,8 +35,8 @@ export class UsersService {
     });
   }
 
-  findOneById(id: string) {
-    return this.prisma.user.findUnique({
+  async findOneById(id: string) {
+    const user = await this.prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -46,6 +46,13 @@ export class UsersService {
         phoneNo: true,
       },
     });
+    const imageUrl = user?.profileUrl
+      ? this.imageService.getPublicUrl(user?.profileUrl)
+      : null;
+    return {
+      ...user,
+      profileUrl: imageUrl,
+    };
   }
 
   findOneByEmail(email: string) {
@@ -83,15 +90,14 @@ export class UsersService {
     file: Express.Multer.File | undefined,
   ) {
     const { name, phoneNo } = updateUserDto;
-    let imageKey: string | null = null;
     const existingUser = await this.findOne(id);
     if (!existingUser) {
       throw new NotFoundException('User not found');
     }
-    console.log('image key ✅', file);
+    let imageKey = existingUser?.profileUrl;
 
     if (file) {
-      imageKey = await this.r2Service.uploadPublicImage(file);
+      imageKey = await this.imageService.uploadPublicImage(file);
     }
     try {
       return this.prisma.user.update({
@@ -109,7 +115,7 @@ export class UsersService {
         },
       });
     } catch (err) {
-      if (imageKey) this.r2Service.deleteImage(imageKey);
+      if (imageKey) this.imageService.deleteImage(imageKey);
     }
   }
 

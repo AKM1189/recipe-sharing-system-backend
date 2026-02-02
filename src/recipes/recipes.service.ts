@@ -12,8 +12,9 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UserInterface } from 'src/users/interfaces/user.interface';
 import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
-import { LocalStorageService } from 'src/local-storage.service';
+import { LocalStorageService } from 'src/image/upload-services/local-storage.service';
 import { EmbeddingService } from 'src/embedding/embedding.service';
+import { ImageService } from 'src/image/image.service';
 
 @Injectable()
 export class RecipesService {
@@ -22,7 +23,7 @@ export class RecipesService {
     private recipeIngredientService: RecipeIngredientsService,
     private recipeStepService: RecipeStepsService,
     private categoryService: CategoriesService,
-    private imageService: LocalStorageService,
+    private imageService: ImageService,
     private embeddingService: EmbeddingService,
   ) {}
 
@@ -104,6 +105,7 @@ export class RecipesService {
             id: true,
             name: true,
             email: true,
+            profileUrl: true,
           },
         },
       },
