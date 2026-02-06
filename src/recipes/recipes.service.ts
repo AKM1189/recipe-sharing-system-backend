@@ -141,7 +141,7 @@ export class RecipesService {
 
         await this.recipeStepService.create(recipe.id, steps, tx);
 
-        await this.saveEmbedding(recipe.id, tx);
+        // await this.saveEmbedding(recipe.id, tx);
 
         return recipe;
       });
