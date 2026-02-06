@@ -12,7 +12,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UserInterface } from 'src/users/interfaces/user.interface';
 import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
-import { LocalStorageService } from 'src/image/upload-services/local-storage.service';
 import { EmbeddingService } from 'src/embedding/embedding.service';
 import { ImageService } from 'src/image/image.service';
 
@@ -229,39 +228,82 @@ export class RecipesService {
     }
   }
 
-  async search(query: string) {
-    const queryEmbedding = await this.embeddingService.embed(query);
-    const queryVector = this.toPgVector(queryEmbedding);
+  // async search(query: string) {
+  //   const queryEmbedding = await this.embeddingService.embed(query);
+  //   const queryVector = this.toPgVector(queryEmbedding);
 
-    const results = await this.prisma.$queryRawUnsafe(
-      `SELECT
-        r.*,
-        COALESCE(
-        json_agg(
-        DISTINCT jsonb_build_object(
-        'recipeId', rc."recipeId",
-        'categoryId', rc."categoryId",
-        'category', jsonb_build_object(
-          'id', c.id,
-          'name', c.name,
-          'slug', c.slug
-        )
-        )
-        ) FILTER (WHERE rc."categoryId" IS NOT NULL),
-        '[]'
-        ) AS categories,
-        1 - (s.embedding <=> $1::vector) AS similarity
-        FROM "RecipeSearchIndex" s
-        JOIN "Recipe" r ON r.id = s."recipeId"
-        LEFT JOIN "RecipeCategories" rc ON rc."recipeId" = r.id
-        LEFT JOIN "Category" c ON c.id = rc."categoryId"
-        WHERE r.status = 'PUBLISHED'
-        GROUP BY r.id, s.embedding
-        ORDER BY s.embedding <=> $1::vector
-        LIMIT 20;
-        `,
-      queryVector,
-    );
+  //   const results = await this.prisma.$queryRawUnsafe(
+  //     `SELECT
+  //       r.*,
+  //       COALESCE(
+  //       json_agg(
+  //       DISTINCT jsonb_build_object(
+  //       'recipeId', rc."recipeId",
+  //       'categoryId', rc."categoryId",
+  //       'category', jsonb_build_object(
+  //         'id', c.id,
+  //         'name', c.name,
+  //         'slug', c.slug
+  //       )
+  //       )
+  //       ) FILTER (WHERE rc."categoryId" IS NOT NULL),
+  //       '[]'
+  //       ) AS categories,
+  //       1 - (s.embedding <=> $1::vector) AS similarity
+  //       FROM "RecipeSearchIndex" s
+  //       JOIN "Recipe" r ON r.id = s."recipeId"
+  //       LEFT JOIN "RecipeCategories" rc ON rc."recipeId" = r.id
+  //       LEFT JOIN "Category" c ON c.id = rc."categoryId"
+  //       WHERE r.status = 'PUBLISHED'
+  //       GROUP BY r.id, s.embedding
+  //       ORDER BY s.embedding <=> $1::vector
+  //       LIMIT 20;
+  //       `,
+  //     queryVector,
+  //   );
+
+  //   return results;
+  // }
+
+  async search(query: string) {
+    const results = this.prisma.recipe.findMany({
+      where: {
+        OR: [
+          {
+            title: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            ingredients: {
+              some: {
+                name: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            },
+          },
+          {
+            categories: {
+              some: {
+                category: {
+                  name: {
+                    contains: query,
+                    mode: 'insensitive',
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        ingredients: true,
+        categories: { include: { category: true } },
+      },
+    });
 
     return results;
   }
