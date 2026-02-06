@@ -36,7 +36,7 @@ async function bootstrap() {
     origin: [
       'http://localhost:5000', // Next.js dev
       'http://127.0.0.1:5000', // sometimes needed
-      'https:Serv//your-frontend.com', // production
+      'https://recipe-sharing-system-frontend.vercel.app', // production
     ],
     credentials: true, // IMPORTANT for cookies
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
