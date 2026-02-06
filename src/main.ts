@@ -5,8 +5,20 @@ import { AllExceptionsFilter } from './http-exception.filter';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { setDefaultAutoSelectFamilyAttemptTimeout } from 'net';
+import { Agent, setGlobalDispatcher } from 'undici';
 
 process.env.TZ = 'UTC';
+
+// 1. Prevent DNS "hanging" (crucial for some ISP configurations)
+setDefaultAutoSelectFamilyAttemptTimeout(500);
+
+// 2. Globally override the 10s connection limit to 30s
+setGlobalDispatcher(
+  new Agent({
+    connect: { timeout: 30000 },
+  }),
+);
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
