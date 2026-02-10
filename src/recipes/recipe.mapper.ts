@@ -45,6 +45,7 @@ export function mapRecipeToResponseDto(
   recipe: any,
   cloudinaryService: CloudinaryService,
 ): RecipeResponseDto {
+  console.log('recipe', recipe);
   return {
     ...recipe,
     imageUrl: recipe.imageUrl
@@ -66,6 +67,7 @@ export function mapRecipeToResponseDto(
         cloudinaryService,
       ),
     },
+    ...(recipe?.favourites && {}),
   };
 }
 

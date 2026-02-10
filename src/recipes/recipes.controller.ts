@@ -24,7 +24,6 @@ import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { sendResponse } from 'src/common/api-response';
-import { Recipe } from '@prisma/client';
 import { mapRecipesToListDto, mapRecipeToResponseDto } from './recipe.mapper';
 import { ImageService } from 'src/image/image.service';
 
@@ -102,8 +101,10 @@ export class RecipesController {
 
   @Get(':id')
   async findOne(@Param('id', ParseIntPipe) id: number) {
+    console.log('find by id', id);
     const recipe = await this.recipesService.findOne(+id);
     if (!recipe) throw new HttpException('Recipe not found', 404);
+    console.log('recipe by id', recipe);
     const data = mapRecipeToResponseDto(recipe, this.imageService);
     return sendResponse(200, data);
   }

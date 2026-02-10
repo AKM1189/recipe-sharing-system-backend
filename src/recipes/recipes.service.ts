@@ -14,7 +14,37 @@ import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from 'src/categories/categories.service';
 import { EmbeddingService } from 'src/embedding/embedding.service';
 import { ImageService } from 'src/image/image.service';
-
+const recipeInclude = {
+  categories: {
+    include: {
+      category: true,
+    },
+  },
+  ingredients: true,
+  steps: {
+    orderBy: {
+      stepNumber: 'asc' as const,
+    },
+  },
+  reviews: {
+    select: {
+      user: true,
+      id: true,
+      rating: true,
+      description: true,
+      parentId: true,
+      deleted: true,
+    },
+  },
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      profileUrl: true,
+    },
+  },
+};
 @Injectable()
 export class RecipesService {
   constructor(
@@ -30,26 +60,14 @@ export class RecipesService {
     return this.prisma.recipe.findMany({
       ...params,
       orderBy: { createdAt: 'desc' },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
+      include: recipeInclude,
     });
   }
 
   recipesByUser(userId: string) {
     return this.prisma.recipe.findMany({
       where: { userId },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
+      include: recipeInclude,
     });
   }
 
@@ -64,50 +82,14 @@ export class RecipesService {
           },
         },
       },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-      },
+      include: recipeInclude,
     });
   }
 
   findOne(id: number) {
     return this.prisma.recipe.findUnique({
       where: { id },
-      include: {
-        categories: {
-          include: {
-            category: true,
-          },
-        },
-        ingredients: true,
-        steps: {
-          orderBy: {
-            stepNumber: 'asc',
-          },
-        },
-        reviews: {
-          select: {
-            user: true,
-            id: true,
-            rating: true,
-            description: true,
-            parentId: true,
-            deleted: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            profileUrl: true,
-          },
-        },
-      },
+      include: recipeInclude,
     });
   }
 
