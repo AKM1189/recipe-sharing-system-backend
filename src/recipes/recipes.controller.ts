@@ -38,9 +38,11 @@ export class RecipesController {
   async getRecipes(@Query('query') query: string) {
     let recipes: unknown = [];
     if (!query) {
+      console.log('query', query);
       recipes = await this.recipesService.recipes();
     } else {
       recipes = (await this.recipesService.search(query)) ?? [];
+      console.log('recipes', recipes);
     }
 
     if (Array.isArray(recipes) && recipes.length > 0) {
