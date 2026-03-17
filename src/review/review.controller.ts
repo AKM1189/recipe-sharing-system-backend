@@ -13,7 +13,7 @@ import {
 import { ReviewService } from './review.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
-import { sendResponse } from 'src/common/api-response';
+import { sendResponse } from '../common/api-response';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('recipes')

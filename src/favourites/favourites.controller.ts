@@ -12,7 +12,7 @@ import {
 import { FavouriteService } from './favourites.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { mapRecipesToListDto } from 'src/recipes/recipe.mapper';
-import { sendResponse } from 'src/common/api-response';
+import { sendResponse } from '../common/api-response';
 import { ImageService } from 'src/image/image.service';
 import { mapFavouritesToRecipesDto } from './mapper/favourite.mapper';
 

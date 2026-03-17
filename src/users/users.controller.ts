@@ -15,7 +15,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
-import { sendResponse } from 'src/common/api-response';
+import { sendResponse } from '../common/api-response';
 import { UsersService } from './users.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
