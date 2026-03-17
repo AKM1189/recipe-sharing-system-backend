@@ -1,12 +1,12 @@
 // recipe.mapper.ts
-import { CloudinaryService } from '@/image/upload-services/cloudinary.service';
+import { CloudinaryService } from '../image/upload-services/cloudinary.service';
 import { RecipeListResponseDto } from './dto/recipe-list.dto';
 import {
   RecipeResponseDto,
   ReviewDto,
   StepDto,
 } from './dto/recipe-response.dto';
-import { generatePublicImageUrl } from '@/utils/imageHandler';
+import { generatePublicImageUrl } from '../utils/imageHandler';
 
 // export function toRecipeResponseDto(
 //   recipes: any[] | any,

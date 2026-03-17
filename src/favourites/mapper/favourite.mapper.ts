@@ -1,5 +1,5 @@
-import { ImageService } from '@/image/image.service';
-import { mapRecipesToListDto } from '@/recipes/recipe.mapper';
+import { ImageService } from '../../image/image.service';
+import { mapRecipesToListDto } from '../../recipes/recipe.mapper';
 
 export function mapFavouritesToRecipesDto(
   favourites: any[],

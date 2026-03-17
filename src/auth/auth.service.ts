@@ -3,14 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UsersService } from '@/users/users.service';
+import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { TokenService } from './TokenService';
 import { User } from './interfaces/auth.interface';
-import { RefreshTokensService } from '@/refresh-tokens/refresh-tokens.service';
+import { RefreshTokensService } from '../refresh-tokens/refresh-tokens.service';
 import { randomUUID } from 'crypto';
 import { SignupDto } from './dto/signup.dto';
-import { TokenResponse } from '@/users/interfaces/token.interface';
+import { TokenResponse } from '../users/interfaces/token.interface';
 
 @Injectable()
 export class AuthService {

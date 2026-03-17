@@ -1,8 +1,8 @@
 import { RecipeDifficulty, RecipeStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/client';
-import { CategoriesPayload } from '@/categories/interfaces/categories.interface';
-import { IngredientsPayload } from '@/recipe-ingredients/interfaces/recipe-ingredients.interface';
-import { StepsPayload } from '@/recipe-steps/interfaces/recipe-steps.interface';
+import { CategoriesPayload } from '../../categories/interfaces/categories.interface';
+import { IngredientsPayload } from '../../recipe-ingredients/interfaces/recipe-ingredients.interface';
+import { StepsPayload } from '../../recipe-steps/interfaces/recipe-steps.interface';
 
 // export enum RecipeDifficulty {
 //   EASY = 'EASY',

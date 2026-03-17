@@ -7,13 +7,13 @@ import {
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreatePayload, UserInterface } from './interfaces/user.interface';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { randomBytes } from 'crypto';
-import { EmailChangeRequestsService } from '@/email-change-requests/email-change-requests.service';
+import { EmailChangeRequestsService } from '../email-change-requests/email-change-requests.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { ImageService } from '@/image/image.service';
+import { ImageService } from '../image/image.service';
 
 @Injectable()
 export class UsersService {

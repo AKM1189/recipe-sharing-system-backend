@@ -1,4 +1,4 @@
-import { CloudinaryService } from '@/image/upload-services/cloudinary.service';
+import { CloudinaryService } from '../image/upload-services/cloudinary.service';
 
 export const generatePublicImageUrl = (
   imageKey: string | null | undefined,

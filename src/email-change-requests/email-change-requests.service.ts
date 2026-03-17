@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RequestPayload } from './interfaces/email-change-requests.interface';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class EmailChangeRequestsService {

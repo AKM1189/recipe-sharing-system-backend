@@ -10,10 +10,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { FavouriteService } from './favourites.service';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { mapRecipesToListDto } from '@/recipes/recipe.mapper';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { mapRecipesToListDto } from '../recipes/recipe.mapper';
 import { sendResponse } from '../common/api-response';
-import { ImageService } from '@/image/image.service';
+import { ImageService } from '../image/image.service';
 import { mapFavouritesToRecipesDto } from './mapper/favourite.mapper';
 
 @Controller('favourites')

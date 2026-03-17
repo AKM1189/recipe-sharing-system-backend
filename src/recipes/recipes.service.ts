@@ -6,14 +6,14 @@ import {
 } from '@nestjs/common';
 import { CreateRecipeDto, StepDto } from './dto/create-recipe.dto';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
-import { RecipeIngredientsService } from '@/recipe-ingredients/recipe-ingredients.service';
-import { RecipeStepsService } from '@/recipe-steps/recipe-steps.service';
-import { PrismaService } from '@/prisma/prisma.service';
-import { UserInterface } from '@/users/interfaces/user.interface';
+import { RecipeIngredientsService } from '../recipe-ingredients/recipe-ingredients.service';
+import { RecipeStepsService } from '../recipe-steps/recipe-steps.service';
+import { PrismaService } from '../prisma/prisma.service';
+import { UserInterface } from '../users/interfaces/user.interface';
 import { Prisma, Recipe, User } from '@prisma/client';
-import { CategoriesService } from '@/categories/categories.service';
-import { EmbeddingService } from '@/embedding/embedding.service';
-import { ImageService } from '@/image/image.service';
+import { CategoriesService } from '../categories/categories.service';
+import { EmbeddingService } from '../embedding/embedding.service';
+import { ImageService } from '../image/image.service';
 const recipeInclude = {
   categories: {
     include: {

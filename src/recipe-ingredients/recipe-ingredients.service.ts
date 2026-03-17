@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { IngredientsPayload } from './interfaces/recipe-ingredients.interface';
-import { PrismaService } from '@/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
