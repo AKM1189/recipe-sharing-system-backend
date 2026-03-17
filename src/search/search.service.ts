@@ -1,7 +1,7 @@
 // search.service.ts
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '@/prisma/prisma.service';
 
 @Injectable()
 export class SearchService {

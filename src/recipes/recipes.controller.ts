@@ -22,10 +22,10 @@ import {
 import { RecipesService } from './recipes.service';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { sendResponse } from '../common/api-response';
 import { mapRecipesToListDto, mapRecipeToResponseDto } from './recipe.mapper';
-import { ImageService } from 'src/image/image.service';
+import { ImageService } from '@/image/image.service';
 
 @Controller('recipes')
 export class RecipesController {
