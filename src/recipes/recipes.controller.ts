@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Request,
@@ -17,7 +16,6 @@ import {
   HttpException,
   Put,
   Query,
-  BadRequestException,
 } from '@nestjs/common';
 import { RecipesService } from './recipes.service';
 import { UpdateRecipeDto } from './dto/update-recipe.dto';
@@ -26,6 +24,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { sendResponse } from '../common/api-response';
 import { mapRecipesToListDto, mapRecipeToResponseDto } from './recipe.mapper';
 import { ImageService } from '../image/image.service';
+import { PaginationDto } from './dto/pagination.dto';
 
 @Controller('recipes')
 export class RecipesController {
@@ -35,18 +34,24 @@ export class RecipesController {
   ) {}
 
   @Get()
-  async getRecipes(@Query('query') query: string) {
-    let recipes: unknown = [];
-    if (!query) {
-      recipes = await this.recipesService.recipes();
-    } else {
-      recipes = (await this.recipesService.search(query)) ?? [];
-    }
+  async getRecipes(
+    @Query('query') query: string,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    console.log('pagination dto', paginationDto);
+    const result = query
+      ? await this.recipesService.search(query, paginationDto)
+      : await this.recipesService.recipes(paginationDto);
 
-    if (Array.isArray(recipes) && recipes.length > 0) {
-      recipes = mapRecipesToListDto(recipes, this.imageService);
-    }
-    return sendResponse(200, recipes);
+    const items =
+      result.items.length > 0
+        ? mapRecipesToListDto(result.items, this.imageService)
+        : [];
+
+    return sendResponse(200, {
+      items,
+      meta: result.meta,
+    });
   }
 
   @Get('category/:category')

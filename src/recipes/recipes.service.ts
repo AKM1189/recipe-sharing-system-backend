@@ -14,6 +14,9 @@ import { Prisma, Recipe, User } from '@prisma/client';
 import { CategoriesService } from '../categories/categories.service';
 import { EmbeddingService } from '../embedding/embedding.service';
 import { ImageService } from '../image/image.service';
+import { PaginationDto } from './dto/pagination.dto';
+import { PaginatedResult } from './interfaces/recipes.interface';
+import { RedisService } from 'src/redis/redis.service';
 const recipeInclude = {
   categories: {
     include: {
@@ -54,14 +57,37 @@ export class RecipesService {
     private categoryService: CategoriesService,
     private imageService: ImageService,
     private embeddingService: EmbeddingService,
+    private redisService: RedisService,
   ) {}
 
-  async recipes(params?: Prisma.RecipeFindManyArgs): Promise<Recipe[]> {
-    return this.prisma.recipe.findMany({
-      ...params,
-      orderBy: { createdAt: 'desc' },
-      include: recipeInclude,
-    });
+  async recipes(
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResult<Recipe>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const offset = (page - 1) * limit;
+
+    const cachedKey = `recipes:${page}`;
+    const recipesDataInString = await this.redisService.get(cachedKey);
+    if (recipesDataInString) {
+      console.log('return cached data');
+      return JSON.parse(recipesDataInString);
+    }
+
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.recipe.count(),
+      this.prisma.recipe.findMany({
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        include: recipeInclude,
+      }),
+    ]);
+
+    const recipesData = this.buildPaginatedResult(items, total, page, limit);
+    await this.redisService.set(cachedKey, JSON.stringify(recipesData), 5 * 60);
+    console.log('caching data');
+
+    return recipesData;
   }
 
   recipesByUser(userId: string) {
@@ -247,47 +273,57 @@ export class RecipesService {
   //   return results;
   // }
 
-  async search(query: string) {
-    const results = this.prisma.recipe.findMany({
-      where: {
-        OR: [
-          {
-            title: {
-              contains: query,
-              mode: 'insensitive',
+  async search(
+    query: string,
+    paginationDto: PaginationDto,
+  ): Promise<PaginatedResult<Recipe>> {
+    const { page = 1, limit = 10 } = paginationDto;
+    const offset = (page - 1) * limit;
+    const where = {
+      OR: [
+        {
+          title: {
+            contains: query,
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          ingredients: {
+            some: {
+              name: {
+                contains: query,
+                mode: 'insensitive' as const,
+              },
             },
           },
-          {
-            ingredients: {
-              some: {
+        },
+        {
+          categories: {
+            some: {
+              category: {
                 name: {
                   contains: query,
-                  mode: 'insensitive',
+                  mode: 'insensitive' as const,
                 },
               },
             },
           },
-          {
-            categories: {
-              some: {
-                category: {
-                  name: {
-                    contains: query,
-                    mode: 'insensitive',
-                  },
-                },
-              },
-            },
-          },
-        ],
-      },
-      include: {
-        ingredients: true,
-        categories: { include: { category: true } },
-      },
-    });
+        },
+      ],
+    };
 
-    return results;
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.recipe.count({ where }),
+      this.prisma.recipe.findMany({
+        where,
+        take: limit,
+        skip: offset,
+        orderBy: { createdAt: 'desc' },
+        include: recipeInclude,
+      }),
+    ]);
+
+    return this.buildPaginatedResult(items, total, page, limit);
   }
 
   async uploadAllFiles(
@@ -542,5 +578,26 @@ export class RecipesService {
         rating: recipe.rating,
       },
     });
+  }
+
+  private buildPaginatedResult<T>(
+    items: T[],
+    total: number,
+    page: number,
+    limit: number,
+  ): PaginatedResult<T> {
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 }
