@@ -26,13 +26,13 @@ export class AuthService {
     const user = await this.usersService.findOneByEmail(email);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid Credentials');
+      throw new UnauthorizedException('Invalid Credentials!');
     }
 
     const isPasswordValid = bcrypt.compare(password, user.password);
 
     if (!isPasswordValid)
-      throw new UnauthorizedException('Invalid Credentials');
+      throw new UnauthorizedException('Invalid Credentials!');
 
     const { password: userPassword, ...result } = user;
 
