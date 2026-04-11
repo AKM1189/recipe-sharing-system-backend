@@ -7,8 +7,19 @@ import * as path from 'path';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor() {
+    const cert = process.env.DB_SSL_CA?.replace(/\\n/g, '\n');
+    const certPath = '/tmp/ca.pem';
+
+    if (cert && !fs.existsSync(certPath)) {
+      fs.writeFileSync(certPath, cert);
+    }
+
+    const databaseUrl = `${process.env.DATABASE_URL}?sslmode=require${
+      cert ? `&sslrootcert=${certPath}` : ''
+    }`;
+
     const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL as string,
+      connectionString: databaseUrl as string,
     });
     super({ adapter });
   }
