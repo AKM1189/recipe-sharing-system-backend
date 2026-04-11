@@ -11,7 +11,6 @@ import { RefreshTokensService } from '../refresh-tokens/refresh-tokens.service';
 import { randomUUID } from 'crypto';
 import { SignupDto } from './dto/signup.dto';
 import { TokenResponse } from '../users/interfaces/token.interface';
-import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class AuthService {
@@ -19,7 +18,6 @@ export class AuthService {
     private usersService: UsersService,
     private tokenService: TokenService,
     private refreshTokenService: RefreshTokensService,
-    private redisService: RedisService,
   ) {}
 
   async validateUser(email: string, password: string) {
@@ -79,17 +77,7 @@ export class AuthService {
   }
 
   async getUser(id: string) {
-    const cacheKey = `user:${id}`;
-    const cachedUser = await this.redisService.get(cacheKey);
-    if (cachedUser) {
-      return cachedUser;
-    }
     const user = await this.usersService.findOneById(id);
-    await this.redisService.set(
-      `${cacheKey}:string`,
-      JSON.stringify(user),
-      1800,
-    );
     return user;
   }
 

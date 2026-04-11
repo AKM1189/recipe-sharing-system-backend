@@ -22,7 +22,6 @@ import { EmailChangeRequestsModule } from './email-change-requests/email-change-
 import { SearchService } from './search/search.service';
 import { EmbeddingService } from './embedding/embedding.service';
 import { ImageModule } from './image/image.module';
-import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -60,7 +59,6 @@ import { RedisModule } from './redis/redis.module';
     }),
     EmailChangeRequestsModule,
     ImageModule,
-    RedisModule,
   ],
   controllers: [AppController],
   providers: [

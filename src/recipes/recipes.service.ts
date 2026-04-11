@@ -16,7 +16,6 @@ import { EmbeddingService } from '../embedding/embedding.service';
 import { ImageService } from '../image/image.service';
 import { PaginationDto } from './dto/pagination.dto';
 import { PaginatedResult } from './interfaces/recipes.interface';
-import { RedisService } from 'src/redis/redis.service';
 const recipeInclude = {
   categories: {
     include: {
@@ -57,7 +56,6 @@ export class RecipesService {
     private categoryService: CategoriesService,
     private imageService: ImageService,
     private embeddingService: EmbeddingService,
-    private redisService: RedisService,
   ) {}
 
   async recipes(
@@ -65,12 +63,6 @@ export class RecipesService {
   ): Promise<PaginatedResult<Recipe>> {
     const { page = 1, limit = 10 } = paginationDto;
     const offset = (page - 1) * limit;
-
-    const cachedKey = `recipes:${page}:${limit}`;
-    const recipesDataInString = await this.redisService.get(cachedKey);
-    if (recipesDataInString) {
-      return JSON.parse(recipesDataInString);
-    }
 
     const [total, items] = await this.prisma.$transaction([
       this.prisma.recipe.count(),
@@ -83,14 +75,6 @@ export class RecipesService {
     ]);
 
     const recipesData = this.buildPaginatedResult(items, total, page, limit);
-    if (total > 0) {
-      await this.redisService.set(
-        cachedKey,
-        JSON.stringify(recipesData),
-        5 * 60,
-      );
-    }
-
     return recipesData;
   }
 
@@ -151,8 +135,6 @@ export class RecipesService {
         );
 
         await this.recipeStepService.create(recipe.id, steps, tx);
-
-        await this.redisService.deleteMany('recipes:*');
 
         // await this.saveEmbedding(recipe.id, tx);
 
@@ -221,7 +203,6 @@ export class RecipesService {
           tx,
         );
         // await this.saveEmbedding(recipe.id, tx);
-        await this.redisService.deleteMany('recipes:*');
 
         return recipe;
       });
@@ -449,7 +430,6 @@ export class RecipesService {
       toDeleteKeys.map((key) => this.imageService.deleteImage(key));
     }
     const deletedRecipe = this.prisma.recipe.delete({ where: { id } });
-    await this.redisService.deleteMany('recipes:*');
     return deletedRecipe;
   }
 
