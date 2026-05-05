@@ -33,12 +33,24 @@ async function bootstrap() {
   // app.useGlobalFilters(new AllExceptionsFilter());
 
   app.enableCors({
-    origin: [
-      'http://localhost:5000', // Next.js dev
-      'http://127.0.0.1:5000', // sometimes needed
-      'https://recipixa.vercel.app', // production
-    ],
-    credentials: true, // IMPORTANT for cookies
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'http://localhost:5000',
+        'https://recipixa.vercel.app',
+      ];
+
+      // Allow origins that end with .vercel.app or are in the allowed list
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
