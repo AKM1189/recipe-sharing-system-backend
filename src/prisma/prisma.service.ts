@@ -23,7 +23,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       }
     }
 
-    const databaseUrl = `${process.env.DATABASE_URL}?sslmode=require${
+    const databaseUrl = `${process.env.DATABASE_URL}?connection_limit=1&sslmode=require${
       cert ? `&sslrootcert=${certPath}` : ''
     }`;
 
