@@ -64,15 +64,22 @@ export class RecipesService {
     const { page = 1, limit = 10 } = paginationDto;
     const offset = (page - 1) * limit;
 
-    const [total, items] = await this.prisma.$transaction([
-      this.prisma.recipe.count(),
-      this.prisma.recipe.findMany({
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: 'desc' },
-        include: recipeInclude,
-      }),
-    ]);
+    const [total, items] = await this.prisma.$transaction(
+      async (tx) => {
+        const count = await tx.recipe.count();
+        const recipes = await tx.recipe.findMany({
+          take: limit,
+          skip: offset,
+          orderBy: { createdAt: 'desc' },
+          include: recipeInclude,
+        });
+        return [count, recipes];
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      },
+    );
 
     const recipesData = this.buildPaginatedResult(items, total, page, limit);
     return recipesData;
@@ -122,24 +129,30 @@ export class RecipesService {
     );
     const data = this.buildRecipeCreatePayload(dto, recipeImageKey, user);
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const recipe = await tx.recipe.create({
-          data,
-        });
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const recipe = await tx.recipe.create({
+            data,
+          });
 
-        await this.attachCategories(recipe.id, dto.categories, tx);
-        await this.recipeIngredientService.create(
-          recipe.id,
-          dto.ingredients,
-          tx,
-        );
+          await this.attachCategories(recipe.id, dto.categories, tx);
+          await this.recipeIngredientService.create(
+            recipe.id,
+            dto.ingredients,
+            tx,
+          );
 
-        await this.recipeStepService.create(recipe.id, steps, tx);
+          await this.recipeStepService.create(recipe.id, steps, tx);
 
-        // await this.saveEmbedding(recipe.id, tx);
+          // await this.saveEmbedding(recipe.id, tx);
 
-        return recipe;
-      });
+          return recipe;
+        },
+        {
+          maxWait: 5000,
+          timeout: 10000,
+        },
+      );
     } catch (err) {
       await Promise.all(
         uploadedKeys.map((key) => this.imageService.deleteImage(key)),
@@ -177,35 +190,41 @@ export class RecipesService {
     const recipeData = this.buildRecipeUpdatePayload(dto, recipeImageKey);
 
     try {
-      const recipe = await this.prisma.$transaction(async (tx) => {
-        const recipe = await tx.recipe.update({
-          data: recipeData,
-          where: { id },
-        });
+      const recipe = await this.prisma.$transaction(
+        async (tx) => {
+          const recipe = await tx.recipe.update({
+            data: recipeData,
+            where: { id },
+          });
 
-        await this.attachCategories(recipe.id, dto.categories, tx);
+          await this.attachCategories(recipe.id, dto.categories, tx);
 
-        const formattedIngredients = dto.ingredients.map((ingredient) => ({
-          ...ingredient,
-          id: this.formatId(ingredient.id),
-        }));
-        await this.recipeIngredientService.updateByRecipe(
-          recipe.id,
-          formattedIngredients,
-          dto.deletedIngredients,
-          tx,
-        );
+          const formattedIngredients = dto.ingredients.map((ingredient) => ({
+            ...ingredient,
+            id: this.formatId(ingredient.id),
+          }));
+          await this.recipeIngredientService.updateByRecipe(
+            recipe.id,
+            formattedIngredients,
+            dto.deletedIngredients,
+            tx,
+          );
 
-        await this.recipeStepService.updateByRecipe(
-          recipe.id,
-          steps,
-          dto.deletedSteps,
-          tx,
-        );
-        // await this.saveEmbedding(recipe.id, tx);
+          await this.recipeStepService.updateByRecipe(
+            recipe.id,
+            steps,
+            dto.deletedSteps,
+            tx,
+          );
+          // await this.saveEmbedding(recipe.id, tx);
 
-        return recipe;
-      });
+          return recipe;
+        },
+        {
+          maxWait: 5000,
+          timeout: 10000,
+        },
+      );
       if (deletedStepsImgKeys.length > 0) {
         await Promise.all(
           deletedStepsImgKeys.map((key) => this.imageService.deleteImage(key)),
@@ -300,16 +319,23 @@ export class RecipesService {
       ],
     };
 
-    const [total, items] = await this.prisma.$transaction([
-      this.prisma.recipe.count({ where }),
-      this.prisma.recipe.findMany({
-        where,
-        take: limit,
-        skip: offset,
-        orderBy: { createdAt: 'desc' },
-        include: recipeInclude,
-      }),
-    ]);
+    const [total, items] = await this.prisma.$transaction(
+      async () => {
+        const count = await this.prisma.recipe.count({ where });
+        const recipes = await this.prisma.recipe.findMany({
+          where,
+          take: limit,
+          skip: offset,
+          orderBy: { createdAt: 'desc' },
+          include: recipeInclude,
+        });
+        return [count, recipes] as [number, any[]];
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      },
+    );
 
     return this.buildPaginatedResult(items, total, page, limit);
   }

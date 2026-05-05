@@ -56,12 +56,18 @@ export class ReviewService {
     };
 
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const review = await this.prisma.review.create({ data: payload });
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const review = await this.prisma.review.create({ data: payload });
 
-        await this.recipeService.addRating(recipeId, tx);
-        return review;
-      });
+          await this.recipeService.addRating(recipeId, tx);
+          return review;
+        },
+        {
+          maxWait: 5000,
+          timeout: 10000,
+        },
+      );
     } catch (error) {
       throw error;
     }
@@ -103,18 +109,24 @@ export class ReviewService {
       parentId: parentId ?? null,
     };
     try {
-      return await this.prisma.$transaction(async (tx) => {
-        const review = await this.prisma.review.update({
-          data: payload,
-          where: {
-            id,
-            recipeId,
-          },
-        });
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const review = await this.prisma.review.update({
+            data: payload,
+            where: {
+              id,
+              recipeId,
+            },
+          });
 
-        await this.recipeService.addRating(recipeId, tx);
-        return review;
-      });
+          await this.recipeService.addRating(recipeId, tx);
+          return review;
+        },
+        {
+          maxWait: 5000,
+          timeout: 10000,
+        },
+      );
     } catch (error) {
       throw error;
     }
@@ -122,14 +134,20 @@ export class ReviewService {
 
   async remove(id: number, recipeId: number) {
     await this.findRecipe(recipeId);
-    return await this.prisma.$transaction(async (tx) => {
-      const review = this.prisma.review.update({
-        data: { deleted: true },
-        where: { id, recipeId },
-      });
-      await this.recipeService.addRating(recipeId, tx);
-      return review;
-    });
+    return await this.prisma.$transaction(
+      async (tx) => {
+        const review = this.prisma.review.update({
+          data: { deleted: true },
+          where: { id, recipeId },
+        });
+        await this.recipeService.addRating(recipeId, tx);
+        return review;
+      },
+      {
+        maxWait: 5000,
+        timeout: 10000,
+      },
+    );
   }
 
   async removeByRecipe(recipeId: number, tx: Prisma.TransactionClient) {
