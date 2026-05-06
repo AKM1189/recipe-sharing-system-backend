@@ -23,7 +23,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       }
     }
 
-    const databaseUrl = `${process.env.DATABASE_URL}?connection_limit=1&sslmode=require${
+    const databaseUrl = `${process.env.DATABASE_URL}?connection_limit=5&sslmode=require${
       cert ? `&sslrootcert=${certPath}` : ''
     }`;
 
@@ -35,7 +35,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   async onModuleInit() {
     await this.$connect();
   }
-
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
   async enableShutdownHooks(app: INestApplication) {
     (this.$on as any)('beforeExit', async () => {
       await app.close();
